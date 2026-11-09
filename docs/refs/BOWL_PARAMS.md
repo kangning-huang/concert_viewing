@@ -77,7 +77,7 @@ A consistency check only: if the 129.90 m and 19°35′ in [N4] were the same se
 | Concert stage | Shared kit `joker_xue_2026` | [STEER_SHARED_STAGE] | STAGE_VIA_SHARED_KIT |
 | Show dates | 11.13–15, 11.20–22, 18:30 | [W5] | CITED |
 | Price tiers | 内场 1717 / 1517 / 1317; 看台 917 / 717 / 517 / 317 | [W5] | CITED |
-| Seat map for 贴脸 / 黄金角 | UNKNOWN: no Wuxi seat map found publicly; need 大麦/猫眼 screenshot | — | UNKNOWN |
+| Seat map for 贴脸 / 黄金角 | Damai diagram on disk (`assets/refs/web/wuxi/damai_seatmap.jpg`) | [开票雷达/大麦 alicdn] | CITED |
 
 ### Do not use 246 × 185.2 m as the bowl footprint
 
@@ -102,3 +102,18 @@ A consistency check only: if the 129.90 m and 19°35′ in [N4] were the same se
 5. Only then remesh GLB / R3F bowl for that venue.
 
 Last updated: 2026-11-10.
+
+
+## Seat map found (2026-11-09)
+
+Damai official seat/zone diagram saved at `assets/refs/web/wuxi/damai_seatmap.jpg` (3305×2361).
+Source: https://img.alicdn.com/imgextra/i4/2251059038/O1CN01IP1U7bZncwG6i2uw_!!2251059038.jpg (via https://piao.zalize.com/show/1089011559335/).
+Damai item: https://m.damai.cn/shows/item.html?itemId=1089011559335 · Maoyan: https://show.maoyan.com/detail/512082
+
+Readable from the diagram (verify labels by eye):
+- Price tiers: 内场 1717 / 1517 / 1317; 看台 917 / 717 / 517 / 317
+- Floor blocks A/B/C/D around the stage; lower bowl ~200s; upper ~400s
+- 224–226 labeled 主席台 on lower bowl
+- Some sections behind stage marked closed / restricted view
+
+This closes the seat-map row for broker 贴脸 / 黄金角 links. It does **not** fill plan size, top-row height, or rake — those remain UNKNOWN for remesh.

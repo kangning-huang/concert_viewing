@@ -14,6 +14,8 @@ Buyer v0 = Ken’s existing 票务中介 contact (not Damai/Maoyan/venue HQ yet)
 
 UX bar: Meridian-style **2D seat map → 3D fly-in** with distance / FOV / offset metrics and zone tags (贴脸 / 黄金角 / 全景).
 
+Start-page skin: **Damai「万兽之王」poster / seat-map** — deep-space `#0b0c12`, chrome silver title, Damai tier colors. The seat layout itself is the **official Damai bitmap** (`public/refs/wuxi/damai_seatmap.jpg`), not a redrawn SVG bowl. No Meridian mint / Songti masthead on the Wuxi start screen.
+
 ## § Shared stage
 
 - One tour stage kit id: **`joker_xue_2026`**
