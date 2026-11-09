@@ -1,0 +1,17 @@
+Opus handoff — build graphics ON this restored baseline
+
+Safe to edit:
+  src/SharedStage.tsx
+  src/stageTextures.ts
+  src/Scene.tsx (materials/lights only)
+  src/PostFx.tsx
+  src/quality.ts
+  assets / public LED textures from assets/refs/xhs/nest/
+
+Do NOT regress:
+  src/SeatMapStart.tsx  (Damai bitmap + clickable hotspots)
+  src/App.tsx enterView / leaving underlay behavior
+  map leave CSS (.map-layer.leaving)
+
+After each change: click 贴脸/黄金角 on map, hit 进入视角, confirm smooth
+crossfade into 3D. If clicks or fly-in break, revert that change.

@@ -8,9 +8,46 @@ type Props = {
 }
 
 const QUICK: { id: SeatPreset; label: string; hint: string }[] = [
-  { id: '贴脸', label: '贴脸', hint: '内场 A 区 · 舞台正前' },
-  { id: '黄金角', label: '黄金角', hint: '看台侧角 · 917 档' },
-  { id: 'overview', label: '全场', hint: '鸟瞰全场概览' },
+  { id: '贴脸', label: '贴脸', hint: '内场 C 区 · 舞台正前 · ¥1717' },
+  { id: '黄金角', label: '黄金角', hint: '看台侧角 · 约 409 区 · ¥917' },
+  { id: 'overview', label: '全场', hint: '高位鸟瞰 · 全场构图' },
+]
+
+/** Percent-space polygons over the official Damai seatmap art (incl. title/legend). */
+const HOTSPOTS: {
+  id: SeatPreset
+  label: string
+  points: string
+  aria: string
+}[] = [
+  {
+    id: '贴脸',
+    label: '贴脸',
+    // Floor C1–C6, stage front (toward open bowl / bottom of art)
+    points: '41,49 59,49 60,60 50,64 40,60',
+    aria: '内场贴脸 C 区',
+  },
+  {
+    id: '黄金角',
+    label: '黄金角',
+    // Lower-right stands ~408–411 (917 档)
+    points: '61,56 73,53 79,63 75,73 64,74 58,67',
+    aria: '黄金角 右侧看台',
+  },
+  {
+    id: '黄金角',
+    label: '黄金角',
+    // Lower-left mirror ~221–213 side
+    points: '27,53 39,56 42,67 36,74 25,73 21,63',
+    aria: '黄金角 左侧看台',
+  },
+  {
+    id: 'overview',
+    label: '全场',
+    // Bottom high bowl ~209–211 / 409–411 outer
+    points: '36,74 64,74 70,84 50,90 30,84',
+    aria: '全场高位概览',
+  },
 ]
 
 const TIERS: { price: string; color: string }[] = [
@@ -32,12 +69,40 @@ export function SeatMapStart({ seat, onSeat, onEnterView, leaving }: Props) {
 
       <div className="map-frame">
         <div className="map-crop">
-          <img
-            className="map-art"
-            src={`${import.meta.env.BASE_URL}refs/wuxi/damai_seatmap.jpg`}
-            alt="薛之谦万兽之王无锡站大麦座位图"
-            draggable={false}
-          />
+          <div className="map-stack">
+            <img
+              className="map-art"
+              src={`${import.meta.env.BASE_URL}refs/wuxi/damai_seatmap_web.jpg`}
+              alt="薛之谦万兽之王无锡站大麦座位图"
+              draggable={false}
+            />
+            <svg
+              className="map-hotspots"
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              role="group"
+              aria-label="可点击座位区（大麦布局）"
+            >
+              {HOTSPOTS.map((h, i) => (
+                <polygon
+                  key={`${h.id}-${i}`}
+                  className={`hotspot${seat === h.id ? ' on' : ''}`}
+                  points={h.points}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={h.aria}
+                  aria-pressed={seat === h.id}
+                  onClick={() => onSeat(h.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      onSeat(h.id)
+                    }
+                  }}
+                />
+              ))}
+            </svg>
+          </div>
         </div>
       </div>
 
@@ -63,7 +128,7 @@ export function SeatMapStart({ seat, onSeat, onEnterView, leaving }: Props) {
             <p>{active.hint}</p>
           </div>
           <button type="button" className="go" onClick={onEnterView}>
-            查看视角
+            进入视角
           </button>
         </div>
 

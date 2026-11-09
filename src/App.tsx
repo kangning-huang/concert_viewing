@@ -87,11 +87,13 @@ export default function App() {
 
   function enterView() {
     if (leaving) return
+    // Mount 3D under the map first, then play Meridian leave so the fly-in
+    // is a real crossfade — not a cut to black after the map fades.
     setLeaving(true)
+    setPhase('view')
     window.setTimeout(() => {
-      setPhase('view')
       setLeaving(false)
-    }, 420)
+    }, 480)
   }
 
   function backToMap() {
@@ -122,7 +124,7 @@ export default function App() {
         />
       ) : null}
 
-      {phase === 'view' ? (
+      {phase === 'view' || leaving ? (
         <>
           <Canvas
             dpr={[1, quality.dprCap]}
