@@ -47,6 +47,15 @@ Wuxi remesh is blocked until Wuxi plan size, top-row height, tier elevations, an
 - Never force max graphics on weak phones
 - Override: `?quality=ultra|high|medium|low`
 
+Tier contents live in `src/quality.ts`. Going down a tier drops bloom, then shadows, reflection probe, grass, haze, beams and texture size. Auto-downgrade needs two 1.5 s windows under 45 FPS and is off when `?quality=` is set or a tier is picked in the HUD.
+
+## § Photoreal pass status
+
+- `joker_xue_2026` materials are procedural (`src/stageTextures.ts`), matched by eye to `assets/refs/xhs/nest/`. LED content is an in-house stand-in: title in a system font, no official wordmark or show footage.
+- **Bowl is still the flat non-metric placeholder** (materials only). Wuxi plan size, rake and top-row height are UNKNOWN in `BOWL_PARAMS.md`, so the sparkle on it is not seat data and 黄金角 elevation is a placeholder.
+- Sightlines: field props stay under `FLOOR_PROP_MAX_HEIGHT`, below floor eye height. Mascots or sculptures, if added, go behind or below seats, never between floor seats and the stage.
+- `?fly=0` skips the fly-in (captures, reduced motion).
+
 ## § Wuxi delivery
 
 Minimum shippable sample:
