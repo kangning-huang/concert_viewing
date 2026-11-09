@@ -1,5 +1,5 @@
-# 薛之谦 · 鸟巢选座预览 (demo)
+# 薛之谦 · 选座预览
 
-GitHub Pages: https://kangning-huang.github.io/concert_viewing/
-
-Built from `/Volumes/LaCie/repos/concert_viewing/demo` (Vite + R3F).
+- Nest demo: https://kangning-huang.github.io/concert_viewing/
+- Wuxi 贴脸: https://kangning-huang.github.io/concert_viewing/?venue=wuxi&pov=close
+- Wuxi 黄金角: https://kangning-huang.github.io/concert_viewing/?venue=wuxi&pov=sweet
