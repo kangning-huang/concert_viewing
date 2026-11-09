@@ -105,72 +105,6 @@ button:focus-visible {
   z-index: 0;
 }
 
-.masthead {
-  position: relative;
-  z-index: 2;
-  padding: calc(14px + var(--safe-t)) calc(18px + var(--safe-r)) 8px calc(18px + var(--safe-l));
-  pointer-events: none;
-  max-width: min(560px, 100%);
-}
-
-.masthead-brand {
-  font-size: 10px;
-  letter-spacing: 0.42em;
-  color: var(--chrome-dim);
-  margin-bottom: 8px;
-}
-
-.chrome-title {
-  margin: 0 0 6px;
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.chrome-title-main {
-  font-size: clamp(28px, 8vw, 44px);
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.18em;
-  background: linear-gradient(180deg, var(--chrome-hi) 0%, var(--chrome) 48%, var(--chrome-dim) 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-shadow: 0 0 24px rgba(242, 244, 247, 0.12);
-}
-
-.chrome-title-evo {
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.38em;
-  color: var(--chrome-dim);
-  padding-bottom: 4px;
-}
-
-.masthead-station {
-  margin: 0 0 2px;
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  color: var(--chrome);
-}
-
-.masthead-venue {
-  margin: 0 0 4px;
-  font-size: 12px;
-  color: var(--chrome-dim);
-  letter-spacing: 0.04em;
-}
-
-.masthead-dates {
-  margin: 0;
-  font-family: var(--num);
-  font-size: 11px;
-  color: var(--chrome-dim);
-  letter-spacing: 0.06em;
-}
-
 .map-frame {
   position: relative;
   z-index: 1;
@@ -179,7 +113,12 @@ button:focus-visible {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px 10px 8px;
+  padding: calc(10px + var(--safe-t)) 10px 8px;
+}
+
+/* Only becomes a box in the phone-portrait crop below. */
+.map-crop {
+  display: contents;
 }
 
 .map-art {
@@ -357,15 +296,41 @@ button:focus-visible {
   border-color: rgba(158, 201, 232, 0.35);
 }
 
+/*
+ * Phone portrait: crop the bitmap to its in-art title + bowl and pin it to the
+ * top. Crop rect on the 2000x1429 artwork: x 40-1710, y 72-1280, which trims
+ * the empty right margin, the rule above the title and the bottom legend strip
+ * (the price legend lives in .pick-card).
+ */
+@media (orientation: portrait) and (max-width: 600px) {
+  .map-frame {
+    align-items: flex-start;
+    padding-top: calc(4px + var(--safe-t));
+  }
+
+  .map-crop {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1670 / 1208;
+    overflow: hidden;
+    border-radius: 4px;
+    box-shadow:
+      0 0 0 1px var(--line),
+      0 18px 48px rgba(0, 0, 0, 0.55);
+  }
+
+  .map-art {
+    display: block;
+    width: 119.76%; /* 2000 / 1670 */
+    max-width: none;
+    max-height: none;
+    margin: -4.31% 0 0 -2.4%; /* -72 / 1670, -40 / 1670 */
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+
 @media (max-width: 480px) {
-  .masthead {
-    padding-bottom: 4px;
-  }
-
-  .chrome-title-main {
-    letter-spacing: 0.12em;
-  }
-
   .pick-card {
     margin-left: calc(8px + var(--safe-l));
     margin-right: calc(8px + var(--safe-r));
