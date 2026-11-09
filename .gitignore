@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.DS_Store
+*.local
+.env
+.env.*
+logs/*.log
+.vite/
+*.tsbuildinfo
+.claude/
+.codex/
+
+# XHS photo blobs stay on disk for agents; manifest is tracked
+assets/refs/xhs/**/*.webp
+assets/refs/xhs/**/*.jpg
+assets/refs/xhs/**/*.jpeg
+assets/refs/xhs/**/*.png
+dist/
