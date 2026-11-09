@@ -1,10 +1,10 @@
 import * as THREE from 'three'
 
 /**
- * Procedural textures for the shared kit `joker_xue_2026`. Nothing is cropped
- * from concert-goer photos and no binary textures ship with the build.
- * Looks are matched by eye to assets/refs/xhs/nest/ (nest_226_0001 blue-violet
- * show state, nest_526_0004 black LED module grid, nest_801_0006 haze).
+ * Procedural structure and atmosphere textures for the shared kit
+ * `joker_xue_2026`, matched by eye to assets/refs/xhs/nest/ (nest_226_0001
+ * show light, nest_801_0006 haze). LED content is real show photography, baked
+ * by scripts/bake_led_textures.py and loaded in SharedStage.
  */
 
 /** Seeded so the kit renders identically in every city. */
@@ -24,77 +24,6 @@ function paint(width: number, height: number, draw: (ctx: CanvasRenderingContext
   canvas.height = height
   draw(canvas.getContext('2d')!, width, height)
   return new THREE.CanvasTexture(canvas)
-}
-
-const CJK_FONT = '"PingFang SC","Noto Sans CJK SC","Microsoft YaHei",sans-serif'
-
-/**
- * LED content in the tour's look: deep blue-violet field, chrome ridges, title
- * set in a system font. The official wordmark and show footage are not used.
- * The title stays inside the centre 55% so the narrower side faces keep it.
- */
-export function ledTexture(width: number, aspect: number, anisotropy: number) {
-  const random = seededRandom(2026)
-  const height = Math.round(width / aspect)
-  const texture = paint(width, height, (ctx, w, h) => {
-    const field = ctx.createLinearGradient(0, 0, w, h)
-    field.addColorStop(0, '#07123f')
-    field.addColorStop(0.45, '#1f58c8')
-    field.addColorStop(0.7, '#5a3fd0')
-    field.addColorStop(1, '#180a52')
-    ctx.fillStyle = field
-    ctx.fillRect(0, 0, w, h)
-
-    ctx.globalCompositeOperation = 'lighter'
-    for (let i = 0; i < 14; i += 1) {
-      const x = random() * w
-      const r = (0.12 + random() * 0.28) * w
-      const bloom = ctx.createRadialGradient(x, random() * h, 0, x, random() * h, r)
-      bloom.addColorStop(0, i % 2 ? 'rgba(120,190,255,0.28)' : 'rgba(170,110,255,0.24)')
-      bloom.addColorStop(1, 'rgba(0,0,0,0)')
-      ctx.fillStyle = bloom
-      ctx.fillRect(0, 0, w, h)
-    }
-
-    // Chrome ridges rising from the bottom edge.
-    ctx.lineCap = 'round'
-    for (let i = 0; i < 90; i += 1) {
-      const x = w * (0.12 + random() * 0.76)
-      const reach = h * (0.14 + random() * 0.3)
-      const lean = (random() - 0.5) * w * 0.09
-      const stroke = ctx.createLinearGradient(0, h, 0, h - reach)
-      stroke.addColorStop(0, 'rgba(235,245,255,0.75)')
-      stroke.addColorStop(1, 'rgba(120,160,255,0)')
-      ctx.strokeStyle = stroke
-      ctx.lineWidth = Math.max(1, w * (0.0012 + random() * 0.004))
-      ctx.beginPath()
-      ctx.moveTo(x, h)
-      ctx.bezierCurveTo(x + lean, h - reach * 0.4, x - lean, h - reach * 0.7, x + lean * 1.6, h - reach)
-      ctx.stroke()
-    }
-    ctx.globalCompositeOperation = 'source-over'
-
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.shadowColor = 'rgba(150,200,255,0.9)'
-    ctx.shadowBlur = w * 0.012
-    ctx.fillStyle = '#f4f8ff'
-    ctx.font = `200 ${Math.round(h * 0.3)}px ${CJK_FONT}`
-    ctx.fillText('万兽之王', w / 2, h * 0.4)
-    ctx.shadowBlur = 0
-    ctx.font = `300 ${Math.round(h * 0.055)}px ${CJK_FONT}`
-    ctx.fillStyle = 'rgba(232,240,255,0.85)'
-    ctx.fillText('J O K E R   X U E   ·   E V O L U T I O N', w / 2, h * 0.63)
-
-    // Module seams, the strongest cue in the close-range photos.
-    const module = Math.max(Math.round(w / 72), 4)
-    ctx.fillStyle = w >= 1024 ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.2)'
-    for (let x = 0; x < w; x += module) ctx.fillRect(x, 0, 1, h)
-    for (let y = 0; y < h; y += module) ctx.fillRect(0, y, w, 1)
-  })
-  texture.colorSpace = THREE.SRGBColorSpace
-  texture.anisotropy = anisotropy
-  return texture
 }
 
 function tiled(texture: THREE.CanvasTexture, worldSize: number, anisotropy: number) {

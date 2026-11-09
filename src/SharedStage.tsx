@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber'
-import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import type { QualitySettings } from './quality'
 import {
@@ -11,7 +11,6 @@ import {
   glowSpriteTexture,
   grassBedTexture,
   hazeSpriteTexture,
-  ledTexture,
   seededRandom,
 } from './stageTextures'
 
@@ -95,14 +94,7 @@ const canopyGeometry = extrude(canopyOuter, CANOPY.height)
 const canopyRimGeometry = ring(roundedRect(CANOPY.width + 0.2, CANOPY.depth + 0.2, CANOPY.radius + 0.1), roundedRect(CANOPY.width - 0.8, CANOPY.depth - 0.8, CANOPY.radius - 0.4), 0.25)
 const grassGeometry = ring(grassOuter, deckOuter, GRASS.bedHeight)
 
-/** Box UVs squash the full texture onto each face; crop the narrow sides instead. */
-const ledGeometry = (() => {
-  const geometry = new THREE.BoxGeometry(LED.width, LED.height, LED.depth)
-  const uv = geometry.attributes.uv as THREE.BufferAttribute
-  const crop = LED.depth / LED.width
-  for (let i = 0; i < 8; i += 1) uv.setX(i, 0.5 + (uv.getX(i) - 0.5) * crop)
-  return geometry
-})()
+const ledGeometry = new THREE.BoxGeometry(LED.width, LED.height, LED.depth)
 
 type Box = {
   position: [number, number, number]
@@ -411,7 +403,70 @@ function Beams({ count, map }: { count: number; map: THREE.Texture }) {
   )
 }
 
-function ImagScreen({ x, z, map }: { x: number; z: number; map: THREE.Texture }) {
+type LedPhotos = { faces: Record<'front' | 'right' | 'back' | 'left', THREE.Texture>; imag: THREE.Texture[]; all: THREE.Texture[] }
+
+/**
+ * Real show photos baked by scripts/bake_led_textures.py. Screens stay black
+ * until the set arrives, and the previous tier's set stays up during a change.
+ */
+function useLedPhotos(kitId: string, size: number, photos: 2 | 4, anisotropy: number) {
+  const [loaded, setLoaded] = useState<LedPhotos | null>(null)
+  const current = useRef<LedPhotos | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const loader = new THREE.TextureLoader()
+    const names = {
+      front: 'front',
+      right: 'right',
+      back: photos === 4 ? 'back' : 'front',
+      left: photos === 4 ? 'left' : 'right',
+    }
+    const imagNames = (photos === 4 ? ['imag1', 'imag2', 'imag3', 'imag4'] : ['imag1', 'imag2'])
+    const unique = [...new Set([...Object.values(names), ...imagNames])]
+    Promise.all(unique.map((name) => loader.loadAsync(`${import.meta.env.BASE_URL}stage/${kitId}/led/${size}/${name}.webp`)))
+      .then((textures) => {
+        textures.forEach((texture) => {
+          texture.colorSpace = THREE.SRGBColorSpace
+          texture.anisotropy = anisotropy
+        })
+        if (cancelled) {
+          textures.forEach((texture) => texture.dispose())
+          return
+        }
+        const byName = (name: string) => textures[unique.indexOf(name)]!
+        current.current?.all.forEach((texture) => texture.dispose())
+        current.current = {
+          faces: { front: byName(names.front), right: byName(names.right), back: byName(names.back), left: byName(names.left) },
+          imag: imagNames.map(byName),
+          all: textures,
+        }
+        setLoaded(current.current)
+      })
+      .catch((error) => console.warn('LED photos failed to load', error))
+    return () => {
+      cancelled = true
+    }
+  }, [kitId, size, photos, anisotropy])
+
+  useEffect(() => () => current.current?.all.forEach((texture) => texture.dispose()), [])
+  return loaded
+}
+
+/** Keyed on the texture: three only recompiles a map-less material when it is replaced. */
+function ScreenMaterial({ map, attach }: { map: THREE.Texture | undefined; attach?: string }) {
+  return <meshBasicMaterial key={map?.uuid ?? 'dark'} attach={attach} map={map ?? null} color={map ? '#ffffff' : '#05060b'} toneMapped={false} />
+}
+
+/** Low tier keeps one screen per diagonal instead of all four. */
+const IMAG_SLOTS: { sx: number; sz: number; onTwo: boolean }[] = [
+  { sx: -1, sz: 1, onTwo: true },
+  { sx: 1, sz: 1, onTwo: false },
+  { sx: 1, sz: -1, onTwo: true },
+  { sx: -1, sz: -1, onTwo: false },
+]
+
+function ImagScreen({ x, z, map }: { x: number; z: number; map: THREE.Texture | undefined }) {
   const rotation = Math.atan2(-x * 0.5, z)
   const center = IMAG.bottom + IMAG.height / 2
   return (
@@ -422,7 +477,7 @@ function ImagScreen({ x, z, map }: { x: number; z: number; map: THREE.Texture })
       </mesh>
       <mesh position={[0, center, -0.05]}>
         <planeGeometry args={[IMAG.width, IMAG.height]} />
-        <meshBasicMaterial map={map} toneMapped={false} />
+        <ScreenMaterial map={map} />
       </mesh>
       {[-1, 1].map((side) => (
         <mesh key={side} position={[side * (IMAG.width / 2 + 0.18), center, 0]}>
@@ -435,17 +490,10 @@ function ImagScreen({ x, z, map }: { x: number; z: number; map: THREE.Texture })
 }
 
 export function SharedStage({ kitId, quality }: { kitId: 'joker_xue_2026'; quality: QualitySettings }) {
-  void kitId
+  const photos = useLedPhotos(kitId, quality.ledTexture, quality.ledPhotos, quality.anisotropy)
+  const imagSlots = useMemo(() => IMAG_SLOTS.filter((slot) => quality.imagScreens === 4 || slot.onTwo), [quality.imagScreens])
   const textures = useMemo(() => {
-    const led = ledTexture(quality.ledTexture, LED.width / LED.height, quality.anisotropy)
-    // Portrait crop of the same content for the IMAG screens.
-    const imag = led.clone()
-    imag.repeat.set((LED.height / LED.width) * (IMAG.width / IMAG.height), 1)
-    imag.offset.set((1 - imag.repeat.x) / 2, 0)
-    imag.needsUpdate = true
     return {
-      led,
-      imag,
       plate: deckPlateTexture(quality.anisotropy),
       fascia: fasciaTexture(quality.anisotropy),
       deckGlow: deckGlowTexture(DECK.width, DECK.depth, LED.width, LED.depth),
@@ -455,7 +503,7 @@ export function SharedStage({ kitId, quality }: { kitId: 'joker_xue_2026'; quali
       haze: hazeSpriteTexture(),
       beam: beamTexture(),
     }
-  }, [quality.ledTexture, quality.anisotropy])
+  }, [quality.anisotropy])
   useEffect(() => () => Object.values(textures).forEach((texture) => texture.dispose()), [textures])
 
   const steel = useMemo(() => {
@@ -523,12 +571,12 @@ export function SharedStage({ kitId, quality }: { kitId: 'joker_xue_2026'; quali
       </BoxInstances>
 
       <mesh geometry={ledGeometry} position={[0, LED.bottom + LED.height / 2, 0]} castShadow>
-        <meshStandardMaterial attach="material-0" color="#05060b" emissive="#ffffff" emissiveMap={textures.led} emissiveIntensity={0.95} roughness={0.35} />
-        <meshStandardMaterial attach="material-1" color="#05060b" emissive="#ffffff" emissiveMap={textures.led} emissiveIntensity={0.95} roughness={0.35} />
+        <ScreenMaterial attach="material-0" map={photos?.faces.right} />
+        <ScreenMaterial attach="material-1" map={photos?.faces.left} />
         <meshStandardMaterial attach="material-2" color="#0a0c12" roughness={0.6} metalness={0.3} />
         <meshStandardMaterial attach="material-3" color="#0a0c14" emissive="#1c2a66" emissiveIntensity={0.35} roughness={0.5} metalness={0.3} />
-        <meshStandardMaterial attach="material-4" color="#05060b" emissive="#ffffff" emissiveMap={textures.led} emissiveIntensity={0.95} roughness={0.35} />
-        <meshStandardMaterial attach="material-5" color="#05060b" emissive="#ffffff" emissiveMap={textures.led} emissiveIntensity={0.95} roughness={0.35} />
+        <ScreenMaterial attach="material-4" map={photos?.faces.front} />
+        <ScreenMaterial attach="material-5" map={photos?.faces.back} />
       </mesh>
       <BoxInstances boxes={ledEdges}>
         <meshBasicMaterial color={[1.7, 1.7, 2]} toneMapped={false} />
@@ -544,7 +592,9 @@ export function SharedStage({ kitId, quality }: { kitId: 'joker_xue_2026'; quali
         <meshBasicMaterial color={[1.4, 1.9, 3]} toneMapped={false} />
       </mesh>
 
-      {[-1, 1].flatMap((sx) => [-1, 1].map((sz) => <ImagScreen key={`${sx}:${sz}`} x={sx * IMAG.x} z={sz * IMAG.z} map={textures.imag} />))}
+      {imagSlots.map((slot, index) => (
+        <ImagScreen key={`${slot.sx}:${slot.sz}`} x={slot.sx * IMAG.x} z={slot.sz * IMAG.z} map={photos?.imag[index % photos.imag.length]} />
+      ))}
 
       <Lamps lamps={lamps} size={1.05} map={textures.glow} />
       <Lamps lamps={deckLamps} size={0.5} map={textures.glow} />

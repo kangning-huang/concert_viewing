@@ -13,7 +13,11 @@ export type QualitySettings = {
   env: boolean
   anisotropy: number
   pixelRatioTarget: number
+  /** Width of the baked LED photos for the long faces: 2048, 1024 or 512. */
   ledTexture: number
+  /** Distinct photos per screen group; with 2, opposite faces share one. */
+  ledPhotos: 2 | 4
+  imagScreens: 2 | 4
   crowdTexture: number
   bulbs: number
   /** Canopy truss spacing in scene units; 0 = no truss. */
@@ -27,19 +31,19 @@ export type QualitySettings = {
 const TIERS: Record<QualityTier, Omit<QualitySettings, 'tier'>> = {
   ultra: {
     dprCap: 2, shadows: true, shadowMapSize: 2048, postFx: true, msaa: 4, env: true, anisotropy: 8, pixelRatioTarget: 2,
-    ledTexture: 2048, crowdTexture: 2048, bulbs: 120, truss: 2.5, towerBraces: true, grassTufts: 9000, hazeCards: 16, beams: 24,
+    ledTexture: 2048, ledPhotos: 4, imagScreens: 4, crowdTexture: 2048, bulbs: 120, truss: 2.5, towerBraces: true, grassTufts: 9000, hazeCards: 16, beams: 24,
   },
   high: {
     dprCap: 1.75, shadows: true, shadowMapSize: 1024, postFx: true, msaa: 2, env: true, anisotropy: 4, pixelRatioTarget: 1.75,
-    ledTexture: 2048, crowdTexture: 1024, bulbs: 80, truss: 4, towerBraces: true, grassTufts: 5000, hazeCards: 10, beams: 16,
+    ledTexture: 2048, ledPhotos: 4, imagScreens: 4, crowdTexture: 1024, bulbs: 80, truss: 4, towerBraces: true, grassTufts: 5000, hazeCards: 10, beams: 16,
   },
   medium: {
     dprCap: 1.25, shadows: false, shadowMapSize: 512, postFx: false, msaa: 0, env: true, anisotropy: 2, pixelRatioTarget: 1.25,
-    ledTexture: 1024, crowdTexture: 1024, bulbs: 60, truss: 6, towerBraces: false, grassTufts: 1500, hazeCards: 4, beams: 8,
+    ledTexture: 1024, ledPhotos: 2, imagScreens: 4, crowdTexture: 1024, bulbs: 60, truss: 6, towerBraces: false, grassTufts: 1500, hazeCards: 4, beams: 8,
   },
   low: {
     dprCap: 1, shadows: false, shadowMapSize: 512, postFx: false, msaa: 0, env: false, anisotropy: 1, pixelRatioTarget: 1,
-    ledTexture: 512, crowdTexture: 512, bulbs: 36, truss: 0, towerBraces: false, grassTufts: 0, hazeCards: 0, beams: 0,
+    ledTexture: 512, ledPhotos: 2, imagScreens: 2, crowdTexture: 512, bulbs: 36, truss: 0, towerBraces: false, grassTufts: 0, hazeCards: 0, beams: 0,
   },
 }
 

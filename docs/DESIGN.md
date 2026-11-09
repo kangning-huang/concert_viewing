@@ -51,7 +51,8 @@ Tier contents live in `src/quality.ts`. Going down a tier drops bloom, then shad
 
 ## § Photoreal pass status
 
-- `joker_xue_2026` materials are procedural (`src/stageTextures.ts`), matched by eye to `assets/refs/xhs/nest/`. LED content is an in-house stand-in: title in a system font, no official wordmark or show footage.
+- `joker_xue_2026` structure and atmosphere are procedural (`src/stageTextures.ts`), matched by eye to `assets/refs/xhs/nest/`.
+- LED volume and IMAG screens show **real Nest show photos**: `scripts/bake_led_textures.py` flattens each screen out of an XHS photo (source files listed there) into `public/stage/joker_xue_2026/led/<2048|1024|512>/`. Crops hold only the screen, never audience members or fan selfies. These crops ship in the build; the full XHS originals stay git-ignored. Medium and Low load 2 LED + 2 IMAG photos; Low also drops to 2 IMAG screens.
 - **Bowl is still the flat non-metric placeholder** (materials only). Wuxi plan size, rake and top-row height are UNKNOWN in `BOWL_PARAMS.md`, so the sparkle on it is not seat data and 黄金角 elevation is a placeholder.
 - Sightlines: field props stay under `FLOOR_PROP_MAX_HEIGHT`, below floor eye height. Mascots or sculptures, if added, go behind or below seats, never between floor seats and the stage.
 - `?fly=0` skips the fly-in (captures, reduced motion).
