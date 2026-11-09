@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// GitHub Pages base path for https://kangning-huang.github.io/concert_viewing/
+// Default: GitHub Pages project site.
+// Side-page on kangning-huang.com: VITE_BASE=/joker-xue-3d/wuxi/ npm run build
 export default defineConfig({
   plugins: [react()],
-  base: '/concert_viewing/',
+  base: process.env.VITE_BASE || '/concert_viewing/',
   build: {
     outDir: 'dist',
     sourcemap: true,

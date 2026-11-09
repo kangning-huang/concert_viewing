@@ -25,6 +25,18 @@ function parsePhaseParam(): Phase | null {
   return null
 }
 
+/** Path /joker-xue-3d/beijing → nest; /wuxi → wuxi. Query ?venue= overrides. */
+function parseVenueParam(): VenueId | null {
+  if (typeof window === 'undefined') return null
+  const q = new URLSearchParams(window.location.search).get('venue')
+  if (q === 'nest' || q === 'beijing' || q === '鸟巢' || q === 'bj') return 'nest'
+  if (q === 'wuxi' || q === '无锡' || q === 'wx') return 'wuxi'
+  const path = window.location.pathname.toLowerCase()
+  if (path.includes('/beijing') || path.includes('/nest')) return 'nest'
+  if (path.includes('/wuxi')) return 'wuxi'
+  return null
+}
+
 export type SeatView = {
   eye: [number, number, number]
   target: [number, number, number]
@@ -60,7 +72,7 @@ const LOW_FPS_WINDOWS = 2
 export default function App() {
   const urlSeat = useMemo(() => parseSeatParam(), [])
   const [phase, setPhase] = useState<Phase>(() => (parsePhaseParam() && urlSeat ? 'view' : 'map'))
-  const [venue, setVenue] = useState<VenueId>('wuxi')
+  const [venue, setVenue] = useState<VenueId>(() => parseVenueParam() ?? 'wuxi')
   const [seat, setSeat] = useState<SeatPreset>(() => urlSeat ?? '黄金角')
   const [tier, setTier] = useState<QualityTier>(() => detectInitialTier())
   const [leaving, setLeaving] = useState(false)
