@@ -26,24 +26,30 @@ export type QualitySettings = {
   grassTufts: number
   hazeCards: number
   beams: number
+  /** Dark moving-head housings hung around the canopy rim; 0 = none. */
+  fixtureHeads: number
+  /** Fan beams from the rim heads, all in one draw call. */
+  fanBeams: number
+  /** Additive light raked over the field; one draw call. */
+  fieldRays: boolean
 }
 
 const TIERS: Record<QualityTier, Omit<QualitySettings, 'tier'>> = {
   ultra: {
     dprCap: 2, shadows: true, shadowMapSize: 2048, postFx: true, msaa: 4, env: true, anisotropy: 8, pixelRatioTarget: 2,
-    ledTexture: 2048, ledPhotos: 4, imagScreens: 4, crowdTexture: 2048, bulbs: 120, truss: 2.5, towerBraces: true, grassTufts: 9000, hazeCards: 16, beams: 24,
+    ledTexture: 2048, ledPhotos: 4, imagScreens: 4, crowdTexture: 2048, bulbs: 120, truss: 2.5, towerBraces: true, grassTufts: 9000, hazeCards: 26, beams: 24, fixtureHeads: 72, fanBeams: 72, fieldRays: true,
   },
   high: {
     dprCap: 1.75, shadows: true, shadowMapSize: 1024, postFx: true, msaa: 2, env: true, anisotropy: 4, pixelRatioTarget: 1.75,
-    ledTexture: 2048, ledPhotos: 4, imagScreens: 4, crowdTexture: 1024, bulbs: 80, truss: 4, towerBraces: true, grassTufts: 5000, hazeCards: 10, beams: 16,
+    ledTexture: 2048, ledPhotos: 4, imagScreens: 4, crowdTexture: 1024, bulbs: 80, truss: 4, towerBraces: true, grassTufts: 5000, hazeCards: 18, beams: 16, fixtureHeads: 48, fanBeams: 48, fieldRays: true,
   },
   medium: {
     dprCap: 1.25, shadows: false, shadowMapSize: 512, postFx: false, msaa: 0, env: true, anisotropy: 2, pixelRatioTarget: 1.25,
-    ledTexture: 1024, ledPhotos: 2, imagScreens: 4, crowdTexture: 1024, bulbs: 60, truss: 6, towerBraces: false, grassTufts: 1500, hazeCards: 4, beams: 8,
+    ledTexture: 1024, ledPhotos: 2, imagScreens: 4, crowdTexture: 1024, bulbs: 60, truss: 6, towerBraces: false, grassTufts: 1500, hazeCards: 4, beams: 8, fixtureHeads: 24, fanBeams: 20, fieldRays: false,
   },
   low: {
     dprCap: 1, shadows: false, shadowMapSize: 512, postFx: false, msaa: 0, env: false, anisotropy: 1, pixelRatioTarget: 1,
-    ledTexture: 512, ledPhotos: 2, imagScreens: 2, crowdTexture: 512, bulbs: 36, truss: 0, towerBraces: false, grassTufts: 0, hazeCards: 0, beams: 0,
+    ledTexture: 512, ledPhotos: 2, imagScreens: 2, crowdTexture: 512, bulbs: 36, truss: 0, towerBraces: false, grassTufts: 0, hazeCards: 0, beams: 0, fixtureHeads: 0, fanBeams: 12, fieldRays: false,
   },
 }
 

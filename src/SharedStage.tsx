@@ -231,12 +231,23 @@ function Lamps({ lamps, size, map }: { lamps: Lamp[]; size: number; map: THREE.T
 }
 
 const BULB_COLORS = [new THREE.Color(2.4, 2.3, 2), new THREE.Color(1, 2, 2.8), new THREE.Color(1.8, 1.1, 2.8)]
+/** The canopy's rainbow rim chain (nest_226_0003, nest_317_0004): runs of one colour. */
+const RIM_COLORS = ['#ff2d55', '#ff8a1f', '#ffd93b', '#3dff7e', '#2ec9ff', '#5a63ff', '#d94dff'].map((hex) => new THREE.Color(hex).multiplyScalar(2.6))
+const RIM_RUN = 4
 
-function perimeterLamps(shape: THREE.Shape, count: number, y: number): Lamp[] {
+function perimeterLamps(shape: THREE.Shape, count: number, y: number, palette: THREE.Color[] = BULB_COLORS, run = 1): Lamp[] {
   return shape
     .getSpacedPoints(count)
     .slice(0, count)
-    .map((point, index) => ({ x: point.x, y, z: -point.y, color: BULB_COLORS[index % BULB_COLORS.length]! }))
+    .map((point, index) => ({ x: point.x, y, z: -point.y, color: palette[Math.floor(index / run) % palette.length]! }))
+}
+
+/** Evenly spaced points around the canopy rim, where the moving heads hang. */
+function rimFixtures(count: number) {
+  return canopyOuter
+    .getSpacedPoints(count)
+    .slice(0, count)
+    .map((point) => ({ x: point.x * 0.96, z: -point.y * 0.96 }))
 }
 
 function underCanopyLamps(rows: number): Lamp[] {
@@ -317,23 +328,28 @@ function Haze({ count, map }: { count: number; map: THREE.Texture }) {
   const ref = useRef<THREE.InstancedMesh>(null)
   const puffs = useMemo(() => {
     const random = seededRandom(909)
-    return Array.from({ length: count }, () => {
+    return Array.from({ length: count }, (_, index) => {
       const angle = random() * Math.PI * 2
+      // Every third puff hangs around the LED volume, where the photos show beams cutting haze.
+      const high = index % 3 === 2
       return {
-        x: Math.cos(angle) * (24 + random() * 16),
-        y: 4 + random() * 10,
-        z: Math.sin(angle) * (18 + random() * 14),
-        size: 16 + random() * 14,
+        x: Math.cos(angle) * (high ? 18 + random() * 10 : 24 + random() * 16),
+        y: high ? 16 + random() * 10 : 4 + random() * 10,
+        z: Math.sin(angle) * (high ? 13 + random() * 8 : 18 + random() * 14),
+        size: high ? 22 + random() * 14 : 16 + random() * 14,
         phase: random() * Math.PI * 2,
       }
     })
   }, [count])
   const color = useMemo(() => new THREE.Color('#7f8dff'), [])
+  const base = useMemo(() => new THREE.Color('#7f8dff'), [])
   const scratch = useMemo(() => ({ matrix: new THREE.Matrix4(), position: new THREE.Vector3(), scale: new THREE.Vector3() }), [])
 
   useFrame(({ camera, clock }) => {
     if (!ref.current) return
     const t = clock.elapsedTime
+    // Haze picks up the current wash, but keeps half its own blue so it never goes flat red.
+    showColor(t, color).lerp(base, 0.5)
     puffs.forEach((puff, index) => {
       scratch.position.set(puff.x + Math.sin(t * 0.09 + puff.phase) * 2.4, puff.y, puff.z)
       scratch.scale.setScalar(puff.size)
@@ -403,7 +419,137 @@ function Beams({ count, map }: { count: number; map: THREE.Texture }) {
   )
 }
 
-type LedPhotos = { faces: Record<'front' | 'right' | 'back' | 'left', THREE.Texture>; imag: THREE.Texture[]; all: THREE.Texture[] }
+/** Wash colours the Nest show cycles through: deep blue, red, violet, cyan. */
+const SHOW_COLORS = ['#2d63ff', '#ff2448', '#8f4bff', '#25c4ff'].map((hex) => new THREE.Color(hex))
+const SHOW_HOLD_SECONDS = 9
+
+/** Holds each wash, then blends to the next over the last third of its slot. */
+function showColor(time: number, out: THREE.Color) {
+  const slot = (time / SHOW_HOLD_SECONDS) % SHOW_COLORS.length
+  const index = Math.floor(slot)
+  const blend = THREE.MathUtils.smoothstep(slot - index, 0.66, 1)
+  return out.copy(SHOW_COLORS[index]!).lerp(SHOW_COLORS[(index + 1) % SHOW_COLORS.length]!, blend)
+}
+
+/**
+ * Tight fans from the rim moving heads (nest_801_0006, nest_526_0001): every
+ * beam is two crossed quads in one geometry, swayed in the vertex shader, so
+ * the whole rig is a single draw call on every tier.
+ */
+function FanBeams({ count }: { count: number }) {
+  const { geometry, material } = useMemo(() => {
+    const position: number[] = []
+    const direction: number[] = []
+    const side: number[] = []
+    const along: number[] = []
+    const across: number[] = []
+    const phase: number[] = []
+    const index: number[] = []
+    let vertex = 0
+    rimFixtures(count).forEach(({ x, z }, i) => {
+      const out = new THREE.Vector3(x, 0, z).normalize()
+      const length = 52 + 14 * Math.sin(i * 2.3)
+      const fan = (i % 3) - 1
+      const dir = new THREE.Vector3(out.x * 0.62 - out.z * fan * 0.25, -0.78, out.z * 0.62 + out.x * fan * 0.25).normalize().multiplyScalar(length)
+      const tangent = new THREE.Vector3(-out.z, 0, out.x)
+      for (const axis of [tangent, new THREE.Vector3(0, 0, 0).crossVectors(tangent, dir).normalize()]) {
+        for (const [t, e] of [[0, -1], [0, 1], [1, -1], [1, 1]] as const) {
+          position.push(x, CANOPY.bottom - 0.85, z)
+          direction.push(dir.x, dir.y, dir.z)
+          side.push(axis.x * e, axis.y * e, axis.z * e)
+          along.push(t)
+          across.push(e)
+          phase.push(i * 0.61)
+        }
+        index.push(vertex, vertex + 1, vertex + 2, vertex + 1, vertex + 3, vertex + 2)
+        vertex += 4
+      }
+    })
+    const next = new THREE.BufferGeometry()
+    next.setAttribute('position', new THREE.Float32BufferAttribute(position, 3))
+    next.setAttribute('aDir', new THREE.Float32BufferAttribute(direction, 3))
+    next.setAttribute('aSide', new THREE.Float32BufferAttribute(side, 3))
+    next.setAttribute('aAlong', new THREE.Float32BufferAttribute(along, 1))
+    next.setAttribute('aAcross', new THREE.Float32BufferAttribute(across, 1))
+    next.setAttribute('aPhase', new THREE.Float32BufferAttribute(phase, 1))
+    next.setIndex(index)
+    const shader = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide,
+      uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color() } },
+      vertexShader: /* glsl */ `
+        attribute vec3 aDir; attribute vec3 aSide; attribute float aAlong, aAcross, aPhase;
+        uniform float uTime; varying float vAlong, vAcross;
+        void main() {
+          vAlong = aAlong; vAcross = aAcross;
+          float a = sin(uTime * 0.5 + aPhase) * 0.22, c = cos(a), s = sin(a);
+          vec3 d = vec3(aDir.x * c - aDir.z * s, aDir.y, aDir.x * s + aDir.z * c);
+          vec3 p = position + d * aAlong + aSide * (0.08 + aAlong * 2.0);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+        }`,
+      fragmentShader: /* glsl */ `
+        uniform vec3 uColor; varying float vAlong, vAcross;
+        void main() {
+          float edge = 1.0 - abs(vAcross);
+          gl_FragColor = vec4(uColor, pow(1.0 - vAlong, 1.5) * smoothstep(0.0, 0.14, vAlong) * edge * edge * 0.5);
+        }`,
+    })
+    return { geometry: next, material: shader }
+  }, [count])
+  useEffect(() => () => {
+    geometry.dispose()
+    material.dispose()
+  }, [geometry, material])
+
+  useFrame(({ clock }) => {
+    material.uniforms.uTime!.value = clock.elapsedTime
+    // Fans run a beat ahead of the floor wash and stay paler, like the white-cored beams in the photos.
+    showColor(clock.elapsedTime + 2, material.uniforms.uColor!.value).lerp(WHITE, 0.35)
+  })
+  return <mesh geometry={geometry} material={material} frustumCulled={false} />
+}
+
+const WHITE = new THREE.Color('#ffffff')
+
+/** Light raked across the field from the stage, between the grass edge and the stands. */
+function FieldRays() {
+  const material = useMemo(
+    () =>
+      new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: { uTime: { value: 0 }, uColor: { value: new THREE.Color() } },
+        vertexShader: /* glsl */ `
+          varying vec2 vPos;
+          void main() { vPos = position.xy; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+        fragmentShader: /* glsl */ `
+          uniform float uTime; uniform vec3 uColor; varying vec2 vPos;
+          void main() {
+            float r = length(vPos), a = atan(vPos.y, vPos.x);
+            float rays = pow(0.5 + 0.5 * sin(a * 44.0 + sin(a * 7.0) * 3.0 + uTime * 0.22), 6.0)
+                       + 0.35 * pow(0.5 + 0.5 * sin(a * 15.0 - uTime * 0.17), 3.0);
+            float band = smoothstep(${(GRASS.depth / 2).toFixed(1)}, ${(GRASS.depth / 2 + 12).toFixed(1)}, r) * smoothstep(88.0, 50.0, r);
+            gl_FragColor = vec4(uColor, rays * band * 0.3);
+          }`,
+      }),
+    [],
+  )
+  useEffect(() => () => material.dispose(), [material])
+  useFrame(({ clock }) => {
+    material.uniforms.uTime!.value = clock.elapsedTime
+    showColor(clock.elapsedTime, material.uniforms.uColor!.value)
+  })
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.06, 0]} material={material} renderOrder={1}>
+      <circleGeometry args={[88, 96]} />
+    </mesh>
+  )
+}
+
+type LedPhotos ={ faces: Record<'front' | 'right' | 'back' | 'left', THREE.Texture>; imag: THREE.Texture[]; all: THREE.Texture[] }
 
 /**
  * Real show photos baked by scripts/bake_led_textures.py. Screens stay black
@@ -513,8 +659,11 @@ export function SharedStage({ kitId, quality }: { kitId: 'joker_xue_2026'; quali
     const legs = [-1, 1].flatMap((sx) =>
       [-1, 1].flatMap((sz) => towerLattice(sx * towerX, sz * towerZ, DECK.height, towerHeight, quality.towerBraces)),
     )
-    return [...legs, ...trussBeams(quality.truss), ...lineArrays()]
-  }, [quality.truss, quality.towerBraces])
+    const heads = quality.fixtureHeads > 0
+      ? rimFixtures(quality.fixtureHeads).map(({ x, z }): Box => ({ position: [x, CANOPY.bottom - 0.42, z], scale: [0.7, 0.85, 0.7] }))
+      : []
+    return [...legs, ...trussBeams(quality.truss), ...lineArrays(), ...heads]
+  }, [quality.truss, quality.towerBraces, quality.fixtureHeads])
   const cases = useMemo(fieldCases, [])
 
   const ledEdges = useMemo<Box[]>(() => {
@@ -534,7 +683,7 @@ export function SharedStage({ kitId, quality }: { kitId: 'joker_xue_2026'; quali
   const lamps = useMemo(() => {
     const rows = quality.bulbs >= 100 ? 5 : quality.bulbs >= 60 ? 3 : 2
     return [
-      ...perimeterLamps(canopyOuter, quality.bulbs, CANOPY.bottom + CANOPY.height + 0.2),
+      ...perimeterLamps(canopyOuter, quality.bulbs, CANOPY.bottom + CANOPY.height + 0.2, RIM_COLORS, RIM_RUN),
       ...underCanopyLamps(rows),
     ]
   }, [quality.bulbs])
@@ -599,6 +748,8 @@ export function SharedStage({ kitId, quality }: { kitId: 'joker_xue_2026'; quali
       <Lamps lamps={lamps} size={1.05} map={textures.glow} />
       <Lamps lamps={deckLamps} size={0.5} map={textures.glow} />
       {quality.beams > 0 ? <Beams count={quality.beams} map={textures.beam} /> : null}
+      {quality.fanBeams > 0 ? <FanBeams count={quality.fanBeams} /> : null}
+      {quality.fieldRays ? <FieldRays /> : null}
       {quality.hazeCards > 0 ? <Haze count={quality.hazeCards} map={textures.haze} /> : null}
     </group>
   )
