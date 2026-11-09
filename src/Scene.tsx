@@ -19,6 +19,7 @@ export function Scene({ venue, seat, quality, onFpsHint }: Props) {
     <>
       <color attach="background" args={['#05060b']} />
       <ambientLight intensity={0.35} />
+      <hemisphereLight args={['#9fb4ff', '#2a2433', 1.4]} />
       <directionalLight
         castShadow={quality.shadows}
         position={[40, 80, 20]}
@@ -26,7 +27,7 @@ export function Scene({ venue, seat, quality, onFpsHint }: Props) {
         shadow-mapSize-width={quality.shadows ? 2048 : 512}
         shadow-mapSize-height={quality.shadows ? 2048 : 512}
       />
-      <SharedStage kitId="joker_xue_2026" />
+      <SharedStage kitId="joker_xue_2026" quality={quality} />
       <BowlPlaceholder venue={venue} />
       {quality.postFx ? <Environment preset="night" /> : null}
       <OrbitControls enablePan enableZoom enableRotate maxPolarAngle={Math.PI * 0.49} />
