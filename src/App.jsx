@@ -8,7 +8,8 @@ import { seatMetrics } from "./metrics.js";
 
 const LAND_MS = 200;
 const params = new URLSearchParams(window.location.search);
-const venue = VENUES[params.get("venue")] ?? VENUES.nest;
+const pathVenue = /\/wuxi\/?$/.test(location.pathname) ? "wuxi" : /\/beijing\/?$/.test(location.pathname) ? "nest" : null;
+const venue = VENUES[params.get("venue") ?? pathVenue] ?? VENUES.nest;
 const deepPov = venue.povs?.[params.get("pov")];
 document.title = venue.meta.pageTitle;
 const switchLink = venue.id === "nest" ? { href: "?venue=wuxi", label: "切换到无锡站" } : { href: "?venue=nest", label: "切换到北京站" };
