@@ -106,6 +106,9 @@ const glowTex = () =>
 // folder public/stage/joker_xue_2026/led/<res>/. Phones load the 1024 set.
 const LED_RES = typeof window !== "undefined" && window.innerWidth < 720 ? 1024 : 2048;
 const LED_DIR = `${import.meta.env.BASE_URL}stage/joker_xue_2026/led/${LED_RES}/`;
+// Kit photos are stored power-of-two (mips built once at upload; NPOT photos caused a
+// one-off ~60 ms frame on first close-up). SRC = true aspect of each captured screen.
+const SRC = { front: 2.7676, back: 2.7676, left: 1.5378, right: 1.5378, imag: 0.6002 };
 const END_FACE = 9.8 / 13, LONG_FACE = 45 / 13, IMAG = 12 / 20;
 
 // "object-fit: cover" for a texture on a plane of the given aspect (no stretching).
@@ -122,42 +125,49 @@ function coverFit(t, planeAspect, a = t.image.width / t.image.height) {
 let ledCache;
 export function useLedTextures() {
   if (ledCache) return ledCache;
-  const loader = new THREE.TextureLoader(), loading = [];
-  const photo = (url, planeAspect) => {
-    let t;
+  // ImageBitmapLoader: decode off the main thread into a CPU bitmap before upload.
+  // (<img> WebP textures caused a one-off ~55-75 ms stall a few seconds after load.)
+  const bitmaps = new THREE.ImageBitmapLoader().setOptions({ imageOrientation: "flipY", premultiplyAlpha: "none" });
+  const jpgs = new THREE.TextureLoader(), loading = [];
+  const photo = (url, planeAspect, srcAspect) => {
+    const t = new THREE.Texture();
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    t.flipY = false;
     loading.push(
-      new Promise((done) => {
-        t = loader.load(url, (tex) => {
-          // Resample to power-of-two so mip levels are built once at upload
-          // (NPOT photos caused a one-off ~60 ms frame on first close-up view).
-          const img = tex.image, aspect = img.width / img.height;
-          const pot = (v) => 2 ** Math.round(Math.log2(v));
-          const cv = document.createElement("canvas");
-          cv.width = pot(img.width);
-          cv.height = pot(img.height);
-          cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
-          tex.image = cv;
-          tex.needsUpdate = true;
-          coverFit(tex, planeAspect, aspect);
-          done(tex);
-        }, undefined, () => done(null));
-      })
+      new Promise((done) =>
+        bitmaps.load(
+          url,
+          (bmp) => {
+            t.image = bmp;
+            t.needsUpdate = true;
+            coverFit(t, planeAspect, srcAspect ?? bmp.width / bmp.height);
+            done(t);
+          },
+          undefined,
+          () => done(null)
+        )
+      )
     );
+    return t;
+  };
+  const jpg = (url) => {
+    const t = jpgs.load(url);
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 8;
     return t;
   };
   ledCache = {
     // cue plates on the LED volume's end faces
-    title: photo(ledTitleUrl, END_FACE),
-    red: photo(ledFeedRedUrl, END_FACE),
-    purple: photo(`${LED_DIR}imag2.webp`, END_FACE),
-    blue: photo(`${LED_DIR}left.webp`, END_FACE),
+    title: jpg(ledTitleUrl), // c941445 plates, loaded exactly as before
+    red: jpg(ledFeedRedUrl),
+    purple: photo(`${LED_DIR}imag2.webp`, END_FACE, SRC.imag),
+    blue: photo(`${LED_DIR}left.webp`, END_FACE, SRC.left),
     // LED volume long faces
-    front: photo(`${LED_DIR}front.webp`, LONG_FACE),
-    back: photo(`${LED_DIR}back.webp`, LONG_FACE),
+    front: photo(`${LED_DIR}front.webp`, LONG_FACE, SRC.front),
+    back: photo(`${LED_DIR}back.webp`, LONG_FACE, SRC.back),
     // the four IMAG towers
-    imag: [1, 2, 3, 4].map((i) => photo(`${LED_DIR}imag${i}.webp`, IMAG)),
+    imag: [1, 2, 3, 4].map((i) => photo(`${LED_DIR}imag${i}.webp`, IMAG, SRC.imag)),
   };
   ledCache.ready = Promise.all(loading);
   return ledCache;

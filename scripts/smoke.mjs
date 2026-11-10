@@ -137,7 +137,8 @@ for (const c of CASES.filter((c) => !only || c.key.includes(only))) {
             const t0 = performance.now();
             const r = orig.apply(this, a);
             const dt = performance.now() - t0;
-            if (dt > 3) window.__gl.push({ fn, t: +t0.toFixed(0), dt: +dt.toFixed(1), w: a.find((x) => x && x.width)?.width });
+            const big = fn === "bufferData" && a[1] && a[1].byteLength > 200000;
+            if (dt > 3 || big) window.__gl.push({ fn, t: +t0.toFixed(0), dt: +dt.toFixed(1), w: big ? a[1].byteLength : a.find((x) => x && x.width)?.width });
             return r;
           };
         }
@@ -149,11 +150,6 @@ for (const c of CASES.filter((c) => !only || c.key.includes(only))) {
     await page.goto(`${origin}?venue=${c.venue}&quality=high`, { waitUntil: "load", timeout: 60000 });
     await page.waitForSelector(".seat-svg g.sec", { timeout: 20000 });
     await new Promise((s) => setTimeout(s, 4000));
-    r.renderer = await page.evaluate(() => {
-      const gl = document.createElement("canvas").getContext("webgl");
-      const e = gl.getExtension("WEBGL_debug_renderer_info");
-      return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : "?";
-    });
     if (shotPrefix && c.nth === 0 && !results.some((x) => x.case.startsWith(c.venue))) await page.screenshot({ path: `${shotPrefix}_map_${c.venue}.png` });
     if (c.needsId && !(await page.$(".seat-svg g.sec[data-id]"))) {
       r.skipped = "map has no per-band ids";
@@ -161,7 +157,10 @@ for (const c of CASES.filter((c) => !only || c.key.includes(only))) {
       await page.close();
       continue;
     }
-    r.mapIdle = stats(await recordFrames(page, 1500));
+    const idleT0 = await page.evaluate(() => performance.now());
+    const idleRaw = await recordFrames(page, 1500);
+    r.mapIdle = stats(idleRaw);
+    if (process.argv.includes("--trace-gl")) { let acc = idleT0; r.idleSpikes = idleRaw.map((d) => ((acc += d), [+acc.toFixed(0), +d.toFixed(1)])).filter(([, d]) => d > 12); r.glAll = await page.evaluate(() => window.__gl.slice()); }
     const tapped = await tapSection(page, c);
     r.tapTarget = { w: +tapped.w.toFixed(1), h: +tapped.h.toFixed(1) };
     await page.waitForFunction((t, price) => { const h = document.querySelector(".pick-card h2"), p = document.querySelector(".pick-card p"); return h?.textContent === t && (!price || p?.textContent.includes(`¥${price}`)); }, { timeout: 3000 }, c.expect, c.price ?? 0).catch(() => {});
@@ -222,6 +221,14 @@ for (const c of CASES.filter((c) => !only || c.key.includes(only))) {
     r.notes.push(String(e.message ?? e));
     failed = true;
   }
+  try {
+    // probed last: creating a 2nd WebGL context mid-test perturbs frame times
+      r.renderer = await page.evaluate(() => {
+      const gl = document.createElement("canvas").getContext("webgl");
+      const e = gl.getExtension("WEBGL_debug_renderer_info");
+      return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : "?";
+    });
+  } catch {}
   if (errors.length) r.notes.push(...errors.slice(0, 3));
   results.push(r);
   await page.close();
