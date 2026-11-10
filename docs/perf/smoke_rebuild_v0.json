@@ -1,0 +1,138 @@
+{
+ "label": "rebuild_v0",
+ "at": "2026-11-10T04:40:40.387Z",
+ "results": [
+  {
+   "case": "wuxi_floor_C3",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 512,
+    "median": 2.5,
+    "p95": 4.9,
+    "max": 6.6,
+    "jank33": 0,
+    "mean": 2.95
+   },
+   "picked": "C3区",
+   "flyin": {
+    "n": 726,
+    "median": 2.1,
+    "p95": 4.4,
+    "max": 36.7,
+    "jank33": 1,
+    "mean": 2.63
+   },
+   "controlDelta": 2.83,
+   "look": {
+    "n": 572,
+    "median": 2.9,
+    "p95": 4.4,
+    "max": 5.2,
+    "jank33": 0,
+    "mean": 2.45
+   },
+   "lookDelta": 33.69
+  },
+  {
+   "case": "wuxi_bowl_409",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 491,
+    "median": 2.5,
+    "p95": 5.2,
+    "max": 10,
+    "jank33": 0,
+    "mean": 3.08
+   },
+   "picked": "409区",
+   "flyin": {
+    "n": 740,
+    "median": 2.2,
+    "p95": 4.2,
+    "max": 17.1,
+    "jank33": 0,
+    "mean": 2.58
+   },
+   "controlDelta": 2.63,
+   "look": {
+    "n": 529,
+    "median": 2.1,
+    "p95": 4.4,
+    "max": 6.8,
+    "jank33": 0,
+    "mean": 2.66
+   },
+   "lookDelta": 32.8
+  },
+  {
+   "case": "nest_floor_A1",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 676,
+    "median": 1.7,
+    "p95": 4,
+    "max": 15.1,
+    "jank33": 0,
+    "mean": 2.25
+   },
+   "picked": "A1区",
+   "flyin": {
+    "n": 849,
+    "median": 1.8,
+    "p95": 4.1,
+    "max": 10.9,
+    "jank33": 0,
+    "mean": 2.24
+   },
+   "controlDelta": 2.77,
+   "look": {
+    "n": 598,
+    "median": 2,
+    "p95": 4,
+    "max": 4.9,
+    "jank33": 0,
+    "mean": 2.34
+   },
+   "lookDelta": 36.77
+  },
+  {
+   "case": "nest_bowl_636",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 622,
+    "median": 2.1,
+    "p95": 4.2,
+    "max": 13.1,
+    "jank33": 0,
+    "mean": 2.43
+   },
+   "picked": "636区",
+   "flyin": {
+    "n": 745,
+    "median": 2,
+    "p95": 4.4,
+    "max": 69.8,
+    "jank33": 1,
+    "mean": 2.55
+   },
+   "controlDelta": 1.75,
+   "look": {
+    "n": 631,
+    "median": 1.9,
+    "p95": 4.1,
+    "max": 5.2,
+    "jank33": 0,
+    "mean": 2.22
+   },
+   "lookDelta": 31.78
+  }
+ ]
+}

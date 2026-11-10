@@ -1,0 +1,138 @@
+{
+ "label": "c941445_original",
+ "at": "2026-11-10T04:39:36.675Z",
+ "results": [
+  {
+   "case": "wuxi_floor_C3",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 511,
+    "median": 2.2,
+    "p95": 4.8,
+    "max": 8.2,
+    "jank33": 0,
+    "mean": 2.95
+   },
+   "picked": "C3区",
+   "flyin": {
+    "n": 729,
+    "median": 2.2,
+    "p95": 4.4,
+    "max": 18.1,
+    "jank33": 0,
+    "mean": 2.63
+   },
+   "controlDelta": 2.67,
+   "look": {
+    "n": 569,
+    "median": 3,
+    "p95": 4.4,
+    "max": 7.1,
+    "jank33": 0,
+    "mean": 2.46
+   },
+   "lookDelta": 30.84
+  },
+  {
+   "case": "wuxi_bowl_409",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 498,
+    "median": 2.4,
+    "p95": 5.1,
+    "max": 7.4,
+    "jank33": 0,
+    "mean": 3.03
+   },
+   "picked": "409区",
+   "flyin": {
+    "n": 724,
+    "median": 2.3,
+    "p95": 4.2,
+    "max": 53.9,
+    "jank33": 1,
+    "mean": 2.63
+   },
+   "controlDelta": 2.71,
+   "look": {
+    "n": 531,
+    "median": 2.2,
+    "p95": 4.3,
+    "max": 7.1,
+    "jank33": 0,
+    "mean": 2.64
+   },
+   "lookDelta": 33.55
+  },
+  {
+   "case": "nest_floor_A1",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 674,
+    "median": 1.9,
+    "p95": 3.9,
+    "max": 16.7,
+    "jank33": 0,
+    "mean": 2.25
+   },
+   "picked": "A1区",
+   "flyin": {
+    "n": 856,
+    "median": 1.5,
+    "p95": 4.1,
+    "max": 88.2,
+    "jank33": 1,
+    "mean": 2.22
+   },
+   "controlDelta": 2.73,
+   "look": {
+    "n": 591,
+    "median": 2.2,
+    "p95": 4.1,
+    "max": 5.5,
+    "jank33": 0,
+    "mean": 2.37
+   },
+   "lookDelta": 38.5
+  },
+  {
+   "case": "nest_bowl_636",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 606,
+    "median": 2.2,
+    "p95": 4.3,
+    "max": 5.9,
+    "jank33": 0,
+    "mean": 2.48
+   },
+   "picked": "636区",
+   "flyin": {
+    "n": 789,
+    "median": 1.7,
+    "p95": 4.3,
+    "max": 70.5,
+    "jank33": 1,
+    "mean": 2.42
+   },
+   "controlDelta": 1.68,
+   "look": {
+    "n": 637,
+    "median": 1.9,
+    "p95": 3.9,
+    "max": 5.5,
+    "jank33": 0,
+    "mean": 2.2
+   },
+   "lookDelta": 32.17
+  }
+ ]
+}
