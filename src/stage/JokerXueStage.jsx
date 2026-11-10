@@ -1,7 +1,7 @@
 // Shared stage kit "joker_xue_2026" — reconstructed 1:1 from the c941445 Pages
 // bundle (assets/index-DIDaugcb.js). Constants are copied verbatim.
-import { useMemo, useRef } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo, useRef } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import ledTitleUrl from "./led_title.jpg";
 import ledFeedRedUrl from "./led_feed_red.jpg";
@@ -35,58 +35,6 @@ function verticalText(ctx, cols, x, y, size, color) {
   ctx.textAlign = "center";
   cols.forEach((col, ci) => [...col].forEach((ch, i) => ctx.fillText(ch, x - ci * size * 1.35, y + i * size * 1.15)));
 }
-
-const purpleTex = () =>
-  canvasTex(768, 1024, (g, w, h) => {
-    const r = lcg(11);
-    const gr = g.createLinearGradient(0, 0, w, h);
-    gr.addColorStop(0, "#2a0f5e");
-    gr.addColorStop(0.55, "#7a2fd0");
-    gr.addColorStop(1, "#ff7ad9");
-    g.fillStyle = gr;
-    g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 420; i++) {
-      g.fillStyle = `hsla(${r() * 360},95%,75%,${0.3 + r() * 0.7})`;
-      g.fillRect(r() * w, r() * h, 3 + r() * 9, 3 + r() * 9);
-    }
-    verticalText(g, ["万兽之王"], w / 2 + 36, 260, 150, "#fff");
-  });
-
-const blueTex = () =>
-  canvasTex(768, 1024, (g, w, h) => {
-    const r = lcg(29);
-    const gr = g.createRadialGradient(w / 2, h * 0.3, 40, w / 2, h * 0.5, h * 0.8);
-    gr.addColorStop(0, "#9be8ff");
-    gr.addColorStop(0.3, "#127fc4");
-    gr.addColorStop(1, "#03122e");
-    g.fillStyle = gr;
-    g.fillRect(0, 0, w, h);
-    for (let i = 0; i < 260; i++) {
-      g.fillStyle = `rgba(190,240,255,${r() * 0.8})`;
-      g.beginPath();
-      g.arc(r() * w, r() * h, r() * 3.4, 0, 7);
-      g.fill();
-    }
-    verticalText(g, ["地球人唱", "你降落的", "太突然了"], w - 130, 130, 92, "#fff");
-  });
-
-const buildingTex = () =>
-  canvasTex(2048, 512, (g, w, h) => {
-    const r = lcg(5);
-    g.fillStyle = "#05050a";
-    g.fillRect(0, 0, w, h);
-    const hues = [0, 215, 280, 40, 190, 330];
-    for (let row = 0; row < 2; row++)
-      for (let x = 8; x < w - 30; ) {
-        const bw = 26 + r() * 48, y = 14 + row * (h / 2), bh = h / 2 - 28, hue = hues[Math.floor(r() * hues.length)], l = r() < 0.25 ? 92 : 38 + r() * 30;
-        const gr = g.createLinearGradient(0, y, 0, y + bh);
-        gr.addColorStop(0, `hsl(${hue},85%,${l}%)`);
-        gr.addColorStop(1, `hsl(${hue + 30},80%,${l * 0.45}%)`);
-        g.fillStyle = gr;
-        g.fillRect(x, y, bw, bh);
-        x += bw + 6 + r() * 16;
-      }
-  });
 
 const giantTex = () =>
   canvasTex(1024, 512, (g, w, h) => {
@@ -153,16 +101,65 @@ const glowTex = () =>
     g.fillRect(0, 0, w, w);
   });
 
+// Real Nest show photos on the screens. Screens were rectified out of XHS concert-goer
+// photos (assets/refs/xhs/nest) by scripts/bake_led_textures.py into the shared kit
+// folder public/stage/joker_xue_2026/led/<res>/. Phones load the 1024 set.
+const LED_RES = typeof window !== "undefined" && window.innerWidth < 720 ? 1024 : 2048;
+const LED_DIR = `${import.meta.env.BASE_URL}stage/joker_xue_2026/led/${LED_RES}/`;
+const END_FACE = 9.8 / 13, LONG_FACE = 45 / 13, IMAG = 12 / 20;
+
+// "object-fit: cover" for a texture on a plane of the given aspect (no stretching).
+function coverFit(t, planeAspect, a = t.image.width / t.image.height) {
+  if (a > planeAspect) {
+    t.repeat.set(planeAspect / a, 1);
+    t.offset.set((1 - planeAspect / a) / 2, 0);
+  } else {
+    t.repeat.set(1, a / planeAspect);
+    t.offset.set(0, (1 - a / planeAspect) / 2);
+  }
+}
+
 let ledCache;
 export function useLedTextures() {
   if (ledCache) return ledCache;
-  const load = (url) => {
-    const t = new THREE.TextureLoader().load(url);
+  const loader = new THREE.TextureLoader(), loading = [];
+  const photo = (url, planeAspect) => {
+    let t;
+    loading.push(
+      new Promise((done) => {
+        t = loader.load(url, (tex) => {
+          // Resample to power-of-two so mip levels are built once at upload
+          // (NPOT photos caused a one-off ~60 ms frame on first close-up view).
+          const img = tex.image, aspect = img.width / img.height;
+          const pot = (v) => 2 ** Math.round(Math.log2(v));
+          const cv = document.createElement("canvas");
+          cv.width = pot(img.width);
+          cv.height = pot(img.height);
+          cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+          tex.image = cv;
+          tex.needsUpdate = true;
+          coverFit(tex, planeAspect, aspect);
+          done(tex);
+        }, undefined, () => done(null));
+      })
+    );
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 8;
     return t;
   };
-  ledCache = { title: load(ledTitleUrl), red: load(ledFeedRedUrl), purple: purpleTex(), blue: blueTex(), building: buildingTex() };
+  ledCache = {
+    // cue plates on the LED volume's end faces
+    title: photo(ledTitleUrl, END_FACE),
+    red: photo(ledFeedRedUrl, END_FACE),
+    purple: photo(`${LED_DIR}imag2.webp`, END_FACE),
+    blue: photo(`${LED_DIR}left.webp`, END_FACE),
+    // LED volume long faces
+    front: photo(`${LED_DIR}front.webp`, LONG_FACE),
+    back: photo(`${LED_DIR}back.webp`, LONG_FACE),
+    // the four IMAG towers
+    imag: [1, 2, 3, 4].map((i) => photo(`${LED_DIR}imag${i}.webp`, IMAG)),
+  };
+  ledCache.ready = Promise.all(loading);
   return ledCache;
 }
 
@@ -481,6 +478,15 @@ function ScreenTower({ position, rotationY, plate, edge, truss, w = 12, h = 18, 
 export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS }) {
   const c = CUES[cue];
   const tex = useLedTextures();
+  const gl = useThree((st) => st.gl);
+  // Upload every screen photo up front so cue switches / fly-in never hitch on a texture upload.
+  useEffect(() => {
+    let live = true;
+    tex.ready.then((ts) => live && ts.forEach((t) => t && gl.initTexture(t)));
+    return () => {
+      live = false;
+    };
+  }, [gl, tex]);
   const truss = useMemo(trussTex, []);
   const plate = tex[c.led];
   const arch = useMemo(
@@ -519,11 +525,11 @@ export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS }) {
             <boxGeometry args={[46, 14, 16]} />
             <meshStandardMaterial color="#060609" />
           </mesh>
-          {/* long faces of the LED "building" volume */}
+          {/* long faces of the LED "building" volume: real Nest screen captures */}
           {[8.05, -8.05].map((z) => (
             <mesh key={z} position={[0, 21, z]} rotation={[0, z < 0 ? Math.PI : 0, 0]}>
               <planeGeometry args={[45, 13]} />
-              <meshBasicMaterial map={tex.building} color={hdr(c.building, 1.5)} toneMapped={false} />
+              <meshBasicMaterial map={z > 0 ? tex.front : tex.back} color={[1.2, 1.2, 1.2]} toneMapped={false} />
             </mesh>
           ))}
           {/* short end faces show the cue plate */}
@@ -543,7 +549,7 @@ export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS }) {
       {motifs.towers &&
         [[-33, 17, 1], [33, 17, 1], [-33, -17, 0], [33, -17, 0]].map(([x, z, front], i) => {
           const ry = Math.atan2(-Math.sign(x), front ? 1 : -1);
-          return <ScreenTower key={i} position={[x, 0, z]} rotationY={ry} plate={plate} edge={c.edge} truss={truss} h={20} />;
+          return <ScreenTower key={i} position={[x, 0, z]} rotationY={ry} plate={tex.imag[i]} edge={c.edge} truss={truss} h={20} />;
         })}
       {motifs.elephant && <Elephant position={[-44, 0, -22]} rotation={[0, 0.4, 0]} />}
       {motifs.whale && <Whale position={[43, 0, -15]} rotation={[0, -0.9, 0]} />}

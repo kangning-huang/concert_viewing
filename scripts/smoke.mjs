@@ -120,11 +120,28 @@ const CASES = [
   { venue: "nest", label: "636", nth: 0, expect: "636区", key: "nest_bowl_636" },
 ];
 
+const onlyIdx = process.argv.indexOf("--only");
+const only = onlyIdx > 0 ? process.argv[onlyIdx + 1] : null;
 const results = [];
 let failed = false;
-for (const c of CASES) {
+for (const c of CASES.filter((c) => !only || c.key.includes(only))) {
   const page = await browser.newPage();
   await page.emulate({ viewport: { width: 390, height: 844, deviceScaleFactor: 3, isMobile: true, hasTouch: true }, userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1" });
+  if (process.argv.includes("--trace-gl"))
+    await page.evaluateOnNewDocument(() => {
+      window.__gl = [];
+      for (const C of [WebGLRenderingContext, WebGL2RenderingContext])
+        for (const fn of ["texImage2D", "texSubImage2D", "generateMipmap", "linkProgram", "compileShader", "texStorage2D", "getProgramParameter", "bufferData"]) {
+          const orig = C.prototype[fn];
+          C.prototype[fn] = function (...a) {
+            const t0 = performance.now();
+            const r = orig.apply(this, a);
+            const dt = performance.now() - t0;
+            if (dt > 3) window.__gl.push({ fn, t: +t0.toFixed(0), dt: +dt.toFixed(1), w: a.find((x) => x && x.width)?.width });
+            return r;
+          };
+        }
+    });
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
   const r = { case: c.key, ok: true, notes: [] };
@@ -178,10 +195,24 @@ for (const c of CASES) {
       await new Promise((s) => setTimeout(s, 16));
     }
     await page.mouse.up();
-    r.look = stats(await rec);
+    const lookT0 = await page.evaluate(() => performance.now());
+    const lookRaw = await rec;
+    r.look = stats(lookRaw);
+    if (process.argv.includes("--trace-gl")) { let acc = 0; r.lookSpikes = lookRaw.map((d) => ((acc += d), [+acc.toFixed(0), +d.toFixed(1)])).filter(([, d]) => d > 12); }
+    if (process.argv.includes("--trace-gl")) r.gl = await page.evaluate(() => window.__gl.slice(-40));
+    r.lookT0 = lookT0;
     const a2 = await shotPixels(page);
     r.lookDelta = +diff(a1, a2).toFixed(2);
     if (r.lookDelta < Math.max(3, r.controlDelta * 2)) throw new Error(`look-around did not move the view (delta ${r.lookDelta} vs control ${r.controlDelta})`);
+    // cue switches (screens change content) — record frames across all four
+    const cueFrames = [];
+    for (let i = 1; i <= 4; i++) {
+      await new Promise((s) => setTimeout(s, 600));
+      const rec2 = recordFrames(page, 700);
+      await page.tap(`.cues button:nth-child(${(i % 4) + 1})`);
+      cueFrames.push(...(await rec2));
+    }
+    r.cues = stats(cueFrames);
     // 换座 → fly-out → map
     await new Promise((s) => setTimeout(s, 600));
     await page.tap(".change");
