@@ -116,7 +116,9 @@ const CASES = [
   { venue: "wuxi", id: "409g", label: "409", nth: 0, expect: "409区", price: 717, key: "wuxi_bowl_409" },
   { venue: "wuxi", id: "224", label: "224", nth: 0, expect: "224区", price: 917, key: "wuxi_bowl_224" },
   { venue: "wuxi", id: "409a", nth: 0, expect: "409区", price: 917, key: "wuxi_band_409a", needsId: true },
+  { venue: "wuxi", id: "D3", label: "D3", nth: 0, expect: "D3区", key: "wuxi_floor_D3" },
   { venue: "nest", label: "A1", nth: 0, expect: "A1区", key: "nest_floor_A1" },
+  { venue: "nest", label: "D3", nth: 0, expect: "D3区", key: "nest_floor_D3" },
   { venue: "nest", label: "636", nth: 0, expect: "636区", key: "nest_bowl_636" },
 ];
 

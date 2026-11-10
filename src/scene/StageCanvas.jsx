@@ -113,7 +113,12 @@ function Post({ tier }) {
   );
 }
 
-const dprRange = (max) => ((typeof window < "u" ? window.innerWidth : 1024) < 720 ? [1, Math.min(max, 1.25)] : [1, max]);
+// ?raycheck exposes the R3F state so scripts/mascot_raycheck.mjs can ray-test the real meshes.
+const exposeForRaycheck = (st) => {
+  if (new URLSearchParams(window.location.search).has("raycheck")) window.__r3f = st;
+};
+
+const dprRange =(max) => ((typeof window < "u" ? window.innerWidth : 1024) < 720 ? [1, Math.min(max, 1.25)] : [1, max]);
 
 export function StageCanvas({ venue, phase, section, cue, onArrived, onReturned }) {
   const [{ tier, adaptive }, setQ] = useState(initialQuality);
@@ -132,7 +137,7 @@ export function StageCanvas({ venue, phase, section, cue, onArrived, onReturned 
   const glOpts = useMemo(() => ({ antialias: q.msaa > 0, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.9 }), [q.msaa]);
   const shadows = q.shadowMap > 0;
   return (
-    <Canvas className="stage-canvas" dpr={dpr} gl={glOpts} shadows={shadows} camera={{ position: [0, 300, 0.01], near: 0.15, far: 1600 }}>
+    <Canvas className="stage-canvas" dpr={dpr} gl={glOpts} shadows={shadows} camera={{ position: [0, 300, 0.01], near: 0.15, far: 1600 }} onCreated={exposeForRaycheck}>
       <color attach="background" args={["#04050b"]} />
       <hemisphereLight args={["#6f7f9e", "#141018", 0.75]} />
       <directionalLight position={[60, 150, 40]} intensity={0.45} color="#9fb2d6" castShadow={shadows} shadow-mapSize-width={q.shadowMap || 1024} shadow-mapSize-height={q.shadowMap || 1024} />

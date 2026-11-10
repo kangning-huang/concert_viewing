@@ -1,0 +1,423 @@
+{
+ "at": "2026-11-10T07:55:08.113Z",
+ "report": {
+  "wuxi": {
+   "mascots": [
+    {
+     "name": "mascot:elephant",
+     "pos": [
+      8,
+      44,
+      8
+     ],
+     "aabb": {
+      "min": [
+       3.8,
+       43.9,
+       5.5
+      ],
+      "max": [
+       14.3,
+       50.2,
+       10.5
+      ]
+     }
+    },
+    {
+     "name": "mascot:whale",
+     "pos": [
+      -12,
+      50,
+      3
+     ],
+     "aabb": {
+      "min": [
+       -13,
+       46.5,
+       -3.2
+      ],
+      "max": [
+       2.3,
+       55.1,
+       9.2
+      ]
+     }
+    },
+    {
+     "name": "mascot:airship",
+     "pos": [
+      14,
+      56,
+      -4
+     ],
+     "aabb": {
+      "min": [
+       6,
+       50.9,
+       -8.3
+      ],
+      "max": [
+       22,
+       59.2,
+       0.3
+      ]
+     }
+    },
+    {
+     "name": "mascot:giant",
+     "pos": [
+      -4,
+      46,
+      -12
+     ],
+     "aabb": {
+      "min": [
+       -12,
+       46,
+       -14.2
+      ],
+      "max": [
+       9.5,
+       54,
+       -9.8
+      ]
+     }
+    }
+   ],
+   "rays": 2286,
+   "groups": {
+    "2xx": {
+     "sections": 32,
+     "rays": 528,
+     "hits": 0
+    },
+    "4xx": {
+     "sections": 78,
+     "rays": 1350,
+     "hits": 0
+    },
+    "floor": {
+     "sections": 24,
+     "rays": 408,
+     "hits": 0
+    }
+   },
+   "floor": {
+    "A6": {
+     "rays": 21,
+     "hits": 0
+    },
+    "C1": {
+     "rays": 21,
+     "hits": 0
+    },
+    "A5": {
+     "rays": 21,
+     "hits": 0
+    },
+    "C2": {
+     "rays": 21,
+     "hits": 0
+    },
+    "A4": {
+     "rays": 13,
+     "hits": 0
+    },
+    "C3": {
+     "rays": 13,
+     "hits": 0
+    },
+    "A3": {
+     "rays": 13,
+     "hits": 0
+    },
+    "C4": {
+     "rays": 13,
+     "hits": 0
+    },
+    "A2": {
+     "rays": 21,
+     "hits": 0
+    },
+    "C5": {
+     "rays": 21,
+     "hits": 0
+    },
+    "A1": {
+     "rays": 21,
+     "hits": 0
+    },
+    "C6": {
+     "rays": 21,
+     "hits": 0
+    },
+    "B1": {
+     "rays": 17,
+     "hits": 0
+    },
+    "B4": {
+     "rays": 17,
+     "hits": 0
+    },
+    "D3": {
+     "rays": 17,
+     "hits": 0
+    },
+    "D6": {
+     "rays": 17,
+     "hits": 0
+    },
+    "B2": {
+     "rays": 13,
+     "hits": 0
+    },
+    "B5": {
+     "rays": 13,
+     "hits": 0
+    },
+    "D2": {
+     "rays": 13,
+     "hits": 0
+    },
+    "D5": {
+     "rays": 13,
+     "hits": 0
+    },
+    "B3": {
+     "rays": 17,
+     "hits": 0
+    },
+    "B6": {
+     "rays": 17,
+     "hits": 0
+    },
+    "D1": {
+     "rays": 17,
+     "hits": 0
+    },
+    "D4": {
+     "rays": 17,
+     "hits": 0
+    }
+   },
+   "hits": [],
+   "footprintOverlaps": [],
+   "flyPathHits": [],
+   "ok": true
+  },
+  "nest": {
+   "mascots": [
+    {
+     "name": "mascot:elephant",
+     "pos": [
+      8,
+      44,
+      8
+     ],
+     "aabb": {
+      "min": [
+       3.8,
+       43.9,
+       5.5
+      ],
+      "max": [
+       14.3,
+       50.2,
+       10.5
+      ]
+     }
+    },
+    {
+     "name": "mascot:whale",
+     "pos": [
+      -12,
+      50,
+      3
+     ],
+     "aabb": {
+      "min": [
+       -13,
+       46.5,
+       -3.2
+      ],
+      "max": [
+       2.3,
+       55.1,
+       9.2
+      ]
+     }
+    },
+    {
+     "name": "mascot:airship",
+     "pos": [
+      14,
+      56,
+      -4
+     ],
+     "aabb": {
+      "min": [
+       6,
+       50.9,
+       -8.3
+      ],
+      "max": [
+       22,
+       59.2,
+       0.3
+      ]
+     }
+    },
+    {
+     "name": "mascot:giant",
+     "pos": [
+      -4,
+      46,
+      -12
+     ],
+     "aabb": {
+      "min": [
+       -12,
+       46,
+       -14.2
+      ],
+      "max": [
+       9.5,
+       54,
+       -9.8
+      ]
+     }
+    }
+   ],
+   "rays": 3556,
+   "groups": {
+    "1xx": {
+     "sections": 56,
+     "rays": 936,
+     "hits": 0
+    },
+    "2xx": {
+     "sections": 56,
+     "rays": 936,
+     "hits": 0
+    },
+    "5xx": {
+     "sections": 52,
+     "rays": 900,
+     "hits": 0
+    },
+    "6xx": {
+     "sections": 24,
+     "rays": 408,
+     "hits": 0
+    },
+    "floor": {
+     "sections": 24,
+     "rays": 376,
+     "hits": 0
+    }
+   },
+   "floor": {
+    "A1": {
+     "rays": 21,
+     "hits": 0
+    },
+    "A2": {
+     "rays": 17,
+     "hits": 0
+    },
+    "A3": {
+     "rays": 13,
+     "hits": 0
+    },
+    "A4": {
+     "rays": 13,
+     "hits": 0
+    },
+    "A5": {
+     "rays": 17,
+     "hits": 0
+    },
+    "A6": {
+     "rays": 21,
+     "hits": 0
+    },
+    "C6": {
+     "rays": 21,
+     "hits": 0
+    },
+    "C5": {
+     "rays": 17,
+     "hits": 0
+    },
+    "C4": {
+     "rays": 13,
+     "hits": 0
+    },
+    "C3": {
+     "rays": 13,
+     "hits": 0
+    },
+    "C2": {
+     "rays": 17,
+     "hits": 0
+    },
+    "C1": {
+     "rays": 21,
+     "hits": 0
+    },
+    "D1": {
+     "rays": 13,
+     "hits": 0
+    },
+    "D4": {
+     "rays": 13,
+     "hits": 0
+    },
+    "B3": {
+     "rays": 13,
+     "hits": 0
+    },
+    "B6": {
+     "rays": 13,
+     "hits": 0
+    },
+    "D2": {
+     "rays": 13,
+     "hits": 0
+    },
+    "D5": {
+     "rays": 13,
+     "hits": 0
+    },
+    "B2": {
+     "rays": 13,
+     "hits": 0
+    },
+    "B5": {
+     "rays": 13,
+     "hits": 0
+    },
+    "D3": {
+     "rays": 17,
+     "hits": 0
+    },
+    "D6": {
+     "rays": 17,
+     "hits": 0
+    },
+    "B1": {
+     "rays": 17,
+     "hits": 0
+    },
+    "B4": {
+     "rays": 17,
+     "hits": 0
+    }
+   },
+   "hits": [],
+   "footprintOverlaps": [],
+   "flyPathHits": [],
+   "ok": true
+  }
+ }
+}

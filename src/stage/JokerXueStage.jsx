@@ -196,14 +196,14 @@ const Plinth = ({ w = 13, d = 9, h = 3.2 }) => (
   </mesh>
 );
 
-function Elephant(props) {
+function Elephant({ plinth = true, ...props }) {
   const trunk = useMemo(() => [[6.3, 6.3, 0], [8, 5.7, 0], [9.4, 6.6, 0], [10.3, 8.8, 0], [11.7, 9.9, 0]], []);
   const tuskL = useMemo(() => [[6, 4.9, 0.9], [7.6, 4.2, 1.1], [9.1, 5, 1.1]], []);
   const tuskR = useMemo(() => [[6, 4.9, -0.9], [7.6, 4.2, -1.1], [9.1, 5, -1.1]], []);
   return (
     <group {...props}>
-      <Plinth w={16} d={9} />
-      <group position={[-1.5, 3.2, 0]}>
+      {plinth && <Plinth w={16} d={9} />}
+      <group position={[-1.5, plinth ? 3.2 : 0, 0]}>
         <Blob p={[0, 5.7, 0]} s={[5.5, 3.5, 3.2]} />
         <Blob p={[5, 6.8, 0]} s={[2.1, 2.2, 1.9]} />
         <Blob p={[4.2, 7, 2.7]} s={[1.7, 2.2, 0.25]} r={[0.25, 0.4, 0]} color="#7d8080" />
@@ -222,7 +222,7 @@ function Elephant(props) {
   );
 }
 
-function Whale(props) {
+function Whale({ plinth = true, ...props }) {
   const geo = useMemo(() => {
     const prof = [[0.2, 0], [2.3, 0.5], [3.7, 2.4], [4.5, 5.5], [4.6, 9], [4.1, 12.5], [3, 15.5], [1.5, 17.7], [0.1, 18.6]];
     const pts = new THREE.SplineCurve(prof.map(([x, y]) => new THREE.Vector2(x, y))).getPoints(48);
@@ -240,8 +240,8 @@ function Whale(props) {
   }, []);
   return (
     <group {...props}>
-      <Plinth w={13} d={12} />
-      <group position={[0, 3.2, 0]} rotation={[-0.12, 0, 0]}>
+      {plinth && <Plinth w={13} d={12} />}
+      <group position={[0, plinth ? 3.2 : 0, 0]} rotation={[-0.12, 0, 0]}>
         <mesh geometry={geo}>
           <meshStandardMaterial vertexColors roughness={0.55} />
         </mesh>
@@ -485,6 +485,9 @@ function ScreenTower({ position, rotationY, plate, edge, truss, w = 12, h = 18, 
   );
 }
 
+// Whale lies flat and swims: lathe axis (local +y, head) → world +x, belly (local +z) → down.
+const WHALE_FLYING = new THREE.Euler().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, -1, 0)));
+
 export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS }) {
   const c = CUES[cue];
   const tex = useLedTextures();
@@ -561,10 +564,14 @@ export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS }) {
           const ry = Math.atan2(-Math.sign(x), front ? 1 : -1);
           return <ScreenTower key={i} position={[x, 0, z]} rotationY={ry} plate={tex.imag[i]} edge={c.edge} truss={truss} h={20} />;
         })}
-      {motifs.elephant && <Elephant position={[-44, 0, -22]} rotation={[0, 0.4, 0]} />}
-      {motifs.whale && <Whale position={[43, 0, -15]} rotation={[0, -0.9, 0]} />}
-      {motifs.airship && <Airship position={[26, 16, -13]} rotation={[0, -0.2, 0.05]} />}
-      {motifs.giant && <Giant position={[-4, 2.4, 9]} scale={0.8} />}
+      {/* Mascots fly ABOVE the arch (y ≥ 44), outside every sight line (scripts/mascot_raycheck.mjs).
+          The stage is 四面台 with seats on all sides, so nothing may stand on the field, the
+          deck, the moat or the LED roof (the roof blocks cross-stage views of the far IMAG
+          towers). Same kit and placement in both venues. */}
+      {motifs.elephant && <Elephant name="mascot:elephant" plinth={false} position={[8, 44, 8]} scale={0.6} />}
+      {motifs.whale && <Whale name="mascot:whale" plinth={false} position={[-12, 50, 3]} rotation={WHALE_FLYING} scale={0.75} />}
+      {motifs.airship && <Airship name="mascot:airship" position={[14, 56, -4]} rotation={[0, -0.2, 0.05]} />}
+      {motifs.giant && <Giant name="mascot:giant" position={[-4, 46, -12]} scale={0.5} />}
       {motifs.reeds && <Reeds cueColor={c.light} />}
       <Lasers color={c.laser} />
       <Haze color={c.light} />

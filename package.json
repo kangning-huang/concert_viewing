@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "raycheck": "vite build && node scripts/mascot_raycheck.mjs dist"
   },
   "dependencies": {
     "@react-three/drei": "9.115.0",
