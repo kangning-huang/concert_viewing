@@ -56,21 +56,41 @@ async function recordFrames(page, ms) {
   );
 }
 
-// Tap the n-th visible (non-unsold) section whose map label equals `text`.
-async function tapSection(page, text, nth = 0) {
+// Tap a SPECIFIC section: by data-id when the map provides it, else the n-th section
+// whose map label equals `text` (the original c941445 bundle has no data-id).
+// Taps a point verified to be inside the section's shape and on top in hit-testing.
+async function tapSection(page, { id, label: text, nth = 0 }) {
   const box = await page.evaluate(
-    (text, nth) => {
-      const gs = [...document.querySelectorAll(".seat-svg g.sec[role=button]")].filter((g) => (g.querySelector("text")?.textContent ?? "") === text);
-      const g = gs[nth];
+    (id, text, nth) => {
+      let g = id ? document.querySelector(`.seat-svg g.sec[role=button][data-id="${id}"]`) : null;
+      if (!g) g = [...document.querySelectorAll(".seat-svg g.sec[role=button]")].filter((g) => (g.querySelector("text")?.textContent ?? "") === text)[nth];
       if (!g) return null;
-      const r = g.querySelector("polygon,path,rect").getBoundingClientRect();
-      return { x: r.x + r.width / 2, y: r.y + r.height / 2, aria: g.getAttribute("aria-label") };
+      const el = g.querySelector("path,polygon,rect");
+      const bb = el.getBBox(), m = el.getScreenCTM();
+      let best = null;
+      for (let i = 1; i < 24; i++)
+        for (let j = 1; j < 24; j++) {
+          const x = bb.x + (bb.width * i) / 24, y = bb.y + (bb.height * j) / 24;
+          if (!el.isPointInFill(new DOMPoint(x, y))) continue;
+          const sx = m.a * x + m.c * y + m.e, sy = m.b * x + m.d * y + m.f;
+          if (!g.contains(document.elementFromPoint(sx, sy))) continue;
+          const d = Math.hypot(i - 12, j - 12);
+          if (!best || d < best.d) best = { x: sx, y: sy, d };
+        }
+      return best && { ...best, aria: g.getAttribute("aria-label"), w: bb.width * m.a, h: bb.height * m.d };
     },
+    id ?? null,
     text,
     nth
   );
-  if (!box) throw new Error(`section "${text}" not on map`);
+  if (!box) throw new Error(`section "${id ?? text}" not tappable on map`);
+  await page.evaluate(() => {
+    window.__clicked = null;
+    document.addEventListener("click", (e) => (window.__clicked = e.target.closest("g")?.dataset.id ?? e.target.closest("g")?.getAttribute("aria-label") ?? e.target.tagName), { once: true, capture: true });
+  });
   await page.touchscreen.tap(box.x, box.y);
+  await new Promise((s) => setTimeout(s, 120));
+  box.clicked = await page.evaluate(() => window.__clicked);
   return box;
 }
 
@@ -92,8 +112,10 @@ async function shotPixels(page) {
 const diff = (a, b) => a.reduce((s, v, i) => s + Math.abs(v - b[i]), 0) / a.length;
 
 const CASES = [
-  { venue: "wuxi", label: "C3", nth: 0, expect: "C3区", key: "wuxi_floor_C3" },
-  { venue: "wuxi", label: "409", nth: 0, expect: "409区", key: "wuxi_bowl_409" },
+  { venue: "wuxi", id: "C3", label: "C3", nth: 0, expect: "C3区", key: "wuxi_floor_C3" },
+  { venue: "wuxi", id: "409g", label: "409", nth: 0, expect: "409区", price: 717, key: "wuxi_bowl_409" },
+  { venue: "wuxi", id: "224", label: "224", nth: 0, expect: "224区", price: 917, key: "wuxi_bowl_224" },
+  { venue: "wuxi", id: "409a", nth: 0, expect: "409区", price: 917, key: "wuxi_band_409a", needsId: true },
   { venue: "nest", label: "A1", nth: 0, expect: "A1区", key: "nest_floor_A1" },
   { venue: "nest", label: "636", nth: 0, expect: "636区", key: "nest_bowl_636" },
 ];
@@ -116,14 +138,26 @@ for (const c of CASES) {
       return e ? gl.getParameter(e.UNMASKED_RENDERER_WEBGL) : "?";
     });
     if (shotPrefix && c.nth === 0 && !results.some((x) => x.case.startsWith(c.venue))) await page.screenshot({ path: `${shotPrefix}_map_${c.venue}.png` });
+    if (c.needsId && !(await page.$(".seat-svg g.sec[data-id]"))) {
+      r.skipped = "map has no per-band ids";
+      results.push(r);
+      await page.close();
+      continue;
+    }
     r.mapIdle = stats(await recordFrames(page, 1500));
-    const tapped = await tapSection(page, c.label, c.nth);
-    await new Promise((s) => setTimeout(s, 250));
+    const tapped = await tapSection(page, c);
+    r.tapTarget = { w: +tapped.w.toFixed(1), h: +tapped.h.toFixed(1) };
+    await page.waitForFunction((t, price) => { const h = document.querySelector(".pick-card h2"), p = document.querySelector(".pick-card p"); return h?.textContent === t && (!price || p?.textContent.includes(`¥${price}`)); }, { timeout: 3000 }, c.expect, c.price ?? 0).catch(() => {});
     const picked = await page.$eval(".pick-card h2", (e) => e.textContent);
     r.picked = picked;
-    if (picked !== c.expect) throw new Error(`picked "${picked}" expected "${c.expect}" (tapped ${tapped.aria})`);
+    if (c.price) {
+      const p = await page.$eval(".pick-card p", (e) => e.textContent);
+      if (!p.includes(`¥${c.price}`)) throw new Error(`price band: "${p}" expected ¥${c.price} (tap @${tapped.x.toFixed(0)},${tapped.y.toFixed(0)} click→${tapped.clicked})`);
+    }
+    if (picked !== c.expect) throw new Error(`picked "${picked}" expected "${c.expect}" (tapped ${tapped.aria} @${tapped.x.toFixed(0)},${tapped.y.toFixed(0)} click→${tapped.clicked})`);
     const selOn = await page.$$eval(".seat-svg g.sec.on", (gs) => gs.length);
     if (selOn !== 1) throw new Error(`expected 1 highlighted section, got ${selOn}`);
+    await new Promise((s) => setTimeout(s, 600)); // human pace: c941445 eats touchends <300ms apart (zoom guard)
     await page.tap(".go");
     r.flyin = stats(await recordFrames(page, 1900));
     await page.waitForSelector(".sheet", { timeout: 6000 });
@@ -149,6 +183,7 @@ for (const c of CASES) {
     r.lookDelta = +diff(a1, a2).toFixed(2);
     if (r.lookDelta < Math.max(3, r.controlDelta * 2)) throw new Error(`look-around did not move the view (delta ${r.lookDelta} vs control ${r.controlDelta})`);
     // 换座 → fly-out → map
+    await new Promise((s) => setTimeout(s, 600));
     await page.tap(".change");
     await page.waitForSelector(".pick-card", { timeout: 6000 });
   } catch (e) {

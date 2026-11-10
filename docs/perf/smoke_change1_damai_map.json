@@ -1,0 +1,228 @@
+{
+ "label": "change1_damai_map",
+ "at": "2026-11-10T05:02:18.691Z",
+ "results": [
+  {
+   "case": "wuxi_floor_C3",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 497,
+    "median": 3.5,
+    "p95": 4.9,
+    "max": 7.6,
+    "jank33": 0,
+    "mean": 3.02
+   },
+   "tapTarget": {
+    "w": 17.4,
+    "h": 27.6
+   },
+   "picked": "C3区",
+   "flyin": {
+    "n": 750,
+    "median": 2.4,
+    "p95": 4.3,
+    "max": 18.4,
+    "jank33": 0,
+    "mean": 2.54
+   },
+   "controlDelta": 3.07,
+   "look": {
+    "n": 552,
+    "median": 2.6,
+    "p95": 4.4,
+    "max": 5.8,
+    "jank33": 0,
+    "mean": 2.54
+   },
+   "lookDelta": 33.06
+  },
+  {
+   "case": "wuxi_bowl_409",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 531,
+    "median": 2,
+    "p95": 4.7,
+    "max": 7.1,
+    "jank33": 0,
+    "mean": 2.83
+   },
+   "tapTarget": {
+    "w": 28.9,
+    "h": 8.9
+   },
+   "picked": "409区",
+   "flyin": {
+    "n": 706,
+    "median": 2.3,
+    "p95": 4.3,
+    "max": 13.4,
+    "jank33": 0,
+    "mean": 2.7
+   },
+   "controlDelta": 2.93,
+   "look": {
+    "n": 542,
+    "median": 2.5,
+    "p95": 4.4,
+    "max": 6.2,
+    "jank33": 0,
+    "mean": 2.59
+   },
+   "lookDelta": 33
+  },
+  {
+   "case": "wuxi_bowl_224",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 513,
+    "median": 2.1,
+    "p95": 4.8,
+    "max": 9.5,
+    "jank33": 0,
+    "mean": 2.94
+   },
+   "tapTarget": {
+    "w": 26.3,
+    "h": 13.2
+   },
+   "picked": "224区",
+   "flyin": {
+    "n": 742,
+    "median": 1.9,
+    "p95": 4.3,
+    "max": 35.2,
+    "jank33": 1,
+    "mean": 2.57
+   },
+   "controlDelta": 3.33,
+   "look": {
+    "n": 551,
+    "median": 1.9,
+    "p95": 4.2,
+    "max": 5.9,
+    "jank33": 0,
+    "mean": 2.54
+   },
+   "lookDelta": 38.05
+  },
+  {
+   "case": "wuxi_band_409a",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 528,
+    "median": 2.5,
+    "p95": 4.7,
+    "max": 7.7,
+    "jank33": 0,
+    "mean": 2.84
+   },
+   "tapTarget": {
+    "w": 27.6,
+    "h": 10.2
+   },
+   "picked": "409区",
+   "flyin": {
+    "n": 681,
+    "median": 2.2,
+    "p95": 4.4,
+    "max": 56.1,
+    "jank33": 1,
+    "mean": 2.8
+   },
+   "controlDelta": 3.77,
+   "look": {
+    "n": 529,
+    "median": 1.9,
+    "p95": 4.5,
+    "max": 16.5,
+    "jank33": 0,
+    "mean": 2.68
+   },
+   "lookDelta": 34.93
+  },
+  {
+   "case": "nest_floor_A1",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 603,
+    "median": 3.1,
+    "p95": 4.2,
+    "max": 6.3,
+    "jank33": 0,
+    "mean": 2.5
+   },
+   "tapTarget": {
+    "w": 9.5,
+    "h": 7.6
+   },
+   "picked": "A1区",
+   "flyin": {
+    "n": 838,
+    "median": 1.6,
+    "p95": 4.1,
+    "max": 85.3,
+    "jank33": 1,
+    "mean": 2.27
+   },
+   "controlDelta": 3.32,
+   "look": {
+    "n": 611,
+    "median": 2,
+    "p95": 4.1,
+    "max": 6,
+    "jank33": 0,
+    "mean": 2.3
+   },
+   "lookDelta": 39.75
+  },
+  {
+   "case": "nest_bowl_636",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 672,
+    "median": 1.6,
+    "p95": 4,
+    "max": 12.6,
+    "jank33": 0,
+    "mean": 2.25
+   },
+   "tapTarget": {
+    "w": 22.4,
+    "h": 16.8
+   },
+   "picked": "636区",
+   "flyin": {
+    "n": 781,
+    "median": 1.5,
+    "p95": 4.3,
+    "max": 67.5,
+    "jank33": 2,
+    "mean": 2.44
+   },
+   "controlDelta": 1.71,
+   "look": {
+    "n": 616,
+    "median": 2,
+    "p95": 4.1,
+    "max": 5.5,
+    "jank33": 0,
+    "mean": 2.28
+   },
+   "lookDelta": 31.6
+  }
+ ]
+}

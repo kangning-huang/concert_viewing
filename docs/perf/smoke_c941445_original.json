@@ -1,6 +1,6 @@
 {
  "label": "c941445_original",
- "at": "2026-11-10T04:39:36.675Z",
+ "at": "2026-11-10T04:59:43.788Z",
  "results": [
   {
    "case": "wuxi_floor_C3",
@@ -8,32 +8,36 @@
    "notes": [],
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
    "mapIdle": {
-    "n": 511,
-    "median": 2.2,
-    "p95": 4.8,
-    "max": 8.2,
+    "n": 510,
+    "median": 2.6,
+    "p95": 4.7,
+    "max": 10.6,
     "jank33": 0,
-    "mean": 2.95
+    "mean": 2.96
+   },
+   "tapTarget": {
+    "w": 16,
+    "h": 29.3
    },
    "picked": "C3区",
    "flyin": {
-    "n": 729,
-    "median": 2.2,
-    "p95": 4.4,
-    "max": 18.1,
+    "n": 742,
+    "median": 2.4,
+    "p95": 4.3,
+    "max": 8.8,
     "jank33": 0,
-    "mean": 2.63
+    "mean": 2.57
    },
-   "controlDelta": 2.67,
+   "controlDelta": 3.2,
    "look": {
-    "n": 569,
-    "median": 3,
-    "p95": 4.4,
-    "max": 7.1,
+    "n": 584,
+    "median": 2.8,
+    "p95": 4.3,
+    "max": 6.5,
     "jank33": 0,
-    "mean": 2.46
+    "mean": 2.4
    },
-   "lookDelta": 30.84
+   "lookDelta": 34.22
   },
   {
    "case": "wuxi_bowl_409",
@@ -41,32 +45,80 @@
    "notes": [],
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
    "mapIdle": {
-    "n": 498,
-    "median": 2.4,
-    "p95": 5.1,
-    "max": 7.4,
+    "n": 521,
+    "median": 2.5,
+    "p95": 4.7,
+    "max": 7.2,
     "jank33": 0,
-    "mean": 3.03
+    "mean": 2.89
+   },
+   "tapTarget": {
+    "w": 30.4,
+    "h": 8.3
    },
    "picked": "409区",
    "flyin": {
-    "n": 724,
-    "median": 2.3,
-    "p95": 4.2,
-    "max": 53.9,
-    "jank33": 1,
-    "mean": 2.63
-   },
-   "controlDelta": 2.71,
-   "look": {
-    "n": 531,
-    "median": 2.2,
+    "n": 715,
+    "median": 2.4,
     "p95": 4.3,
-    "max": 7.1,
+    "max": 10.6,
+    "jank33": 0,
+    "mean": 2.66
+   },
+   "controlDelta": 2.89,
+   "look": {
+    "n": 535,
+    "median": 2.3,
+    "p95": 4.3,
+    "max": 10.8,
     "jank33": 0,
     "mean": 2.64
    },
-   "lookDelta": 33.55
+   "lookDelta": 33.2
+  },
+  {
+   "case": "wuxi_bowl_224",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "mapIdle": {
+    "n": 490,
+    "median": 2.5,
+    "p95": 5,
+    "max": 6.9,
+    "jank33": 0,
+    "mean": 3.07
+   },
+   "tapTarget": {
+    "w": 27.1,
+    "h": 25
+   },
+   "picked": "224区",
+   "flyin": {
+    "n": 712,
+    "median": 2.2,
+    "p95": 4.5,
+    "max": 11.9,
+    "jank33": 0,
+    "mean": 2.69
+   },
+   "controlDelta": 3.23,
+   "look": {
+    "n": 595,
+    "median": 2,
+    "p95": 4.2,
+    "max": 5.3,
+    "jank33": 0,
+    "mean": 2.36
+   },
+   "lookDelta": 39.77
+  },
+  {
+   "case": "wuxi_band_409a",
+   "ok": true,
+   "notes": [],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+   "skipped": "map has no per-band ids"
   },
   {
    "case": "nest_floor_A1",
@@ -74,32 +126,36 @@
    "notes": [],
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
    "mapIdle": {
-    "n": 674,
-    "median": 1.9,
-    "p95": 3.9,
-    "max": 16.7,
+    "n": 661,
+    "median": 1.8,
+    "p95": 4,
+    "max": 12.4,
     "jank33": 0,
-    "mean": 2.25
+    "mean": 2.29
+   },
+   "tapTarget": {
+    "w": 9.5,
+    "h": 7.6
    },
    "picked": "A1区",
    "flyin": {
-    "n": 856,
-    "median": 1.5,
-    "p95": 4.1,
-    "max": 88.2,
-    "jank33": 1,
-    "mean": 2.22
-   },
-   "controlDelta": 2.73,
-   "look": {
-    "n": 591,
-    "median": 2.2,
-    "p95": 4.1,
-    "max": 5.5,
+    "n": 831,
+    "median": 1.9,
+    "p95": 4.2,
+    "max": 10.6,
     "jank33": 0,
-    "mean": 2.37
+    "mean": 2.29
    },
-   "lookDelta": 38.5
+   "controlDelta": 3.08,
+   "look": {
+    "n": 626,
+    "median": 2,
+    "p95": 4,
+    "max": 5.4,
+    "jank33": 0,
+    "mean": 2.24
+   },
+   "lookDelta": 36.67
   },
   {
    "case": "nest_bowl_636",
@@ -107,32 +163,36 @@
    "notes": [],
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
    "mapIdle": {
-    "n": 606,
-    "median": 2.2,
-    "p95": 4.3,
-    "max": 5.9,
+    "n": 608,
+    "median": 2,
+    "p95": 4.4,
+    "max": 5.7,
     "jank33": 0,
-    "mean": 2.48
+    "mean": 2.47
+   },
+   "tapTarget": {
+    "w": 22.4,
+    "h": 16.8
    },
    "picked": "636区",
    "flyin": {
-    "n": 789,
-    "median": 1.7,
+    "n": 809,
+    "median": 1.5,
     "p95": 4.3,
-    "max": 70.5,
-    "jank33": 1,
-    "mean": 2.42
+    "max": 72.3,
+    "jank33": 2,
+    "mean": 2.36
    },
-   "controlDelta": 1.68,
+   "controlDelta": 1.61,
    "look": {
     "n": 637,
     "median": 1.9,
     "p95": 3.9,
-    "max": 5.5,
+    "max": 4.9,
     "jank33": 0,
     "mean": 2.2
    },
-   "lookDelta": 32.17
+   "lookDelta": 31.77
   }
  ]
 }

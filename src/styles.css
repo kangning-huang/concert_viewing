@@ -478,3 +478,27 @@ small {
     max-width: 48vw;
   }
 }
+
+/* Damai bitmap map (wuxi): transparent hotspots over the official picture */
+.map-layer.damai {
+  background: radial-gradient(120% 70% at 50% 50%, #2a2b31 0%, #1d1e24 55%, #0b0c12 100%);
+}
+.map-layer.damai image {
+  pointer-events: none;
+}
+.map-layer.damai .sec.hot path {
+  pointer-events: all;
+  fill: transparent;
+  stroke: none;
+  transition: fill .15s;
+}
+.map-layer.damai .sec.hot:hover path {
+  fill: rgba(255, 255, 255, .18);
+}
+.map-layer.damai .sec.hot.on path {
+  fill: rgba(111, 255, 210, .62);
+  stroke: #6fffd2;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 3px #6fffd2);
+}
