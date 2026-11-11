@@ -1,19 +1,25 @@
-// Shared stage kit "joker_xue_2026" — reconstructed 1:1 from the c941445 Pages
-// bundle (assets/index-DIDaugcb.js). Constants are copied verbatim.
+// Shared stage kit "joker_xue_2026", rebuilt from the Xiaohongshu photos of the Beijing Nest
+// shows (assets/refs/xhs/nest). docs/XHS_STAGE_MATCH.md is the photo checklist; dimensions
+// live in ./kit.js. Photo file names in comments name the evidence for that part.
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import ledTitleUrl from "./led_title.jpg";
-import ledFeedRedUrl from "./led_feed_red.jpg";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { ATMO, atmoUniforms, GLSL_ATMO, GLSL_OUT } from "../scene/atmo.js";
+import { KIT, BOX_CY, imagRotY } from "./kit.js";
 
 export const DEFAULT_MOTIFS = { towers: true, building: true, whale: true, elephant: true, airship: true, giant: true, reeds: true };
 
+// Colours per cue are sampled from the photos: warm-white blinders and cool beams before the
+// show (nest_526_0001, nest_226_0001), rainbow rim on the confetti song (nest_226_0005,
+// nest_917_0005), deep red wash with white beams and red lasers (nest_山顶_0005,
+// nest_226_0004), deep blue with a white sunburst (nest_517_0004, nest_全集视角_0005).
 export const CUES = {
-  title: { label: "开场", led: "title", edge: "#27b9ff", light: "#4f8dff", laser: "#35d6ff", confetti: false, beam: "#bcd7ff", building: "#7fb4ff" },
-  purple: { label: "漫天纸屑", led: "purple", edge: "#c77dff", light: "#a24dff", laser: "#d58bff", confetti: true, beam: "#d9a6ff", building: "#ffffff" },
-  red: { label: "红色独白", led: "red", edge: "#ff2a1c", light: "#ff3524", laser: "#ff3a2a", confetti: false, beam: "#ffb09c", building: "#ff5a44" },
-  blue: { label: "深蓝激光", led: "blue", edge: "#2b6bff", light: "#2c54ff", laser: "#2d5bff", confetti: false, beam: "#8aa7ff", building: "#5f8cff" },
+  title: { label: "开场", led: "title", edge: "#8fd0ff", rim: "#ffdcae", light: "#4f86ff", laser: "#6fd2ff", confetti: false, beam: "#dfe9ff" },
+  purple: { label: "漫天纸屑", led: "purple", edge: "#d88bff", rim: "#ffffff", rainbow: true, light: "#a650ff", laser: "#ff7ad9", confetti: true, beam: "#f0c8ff" },
+  red: { label: "红色独白", led: "red", edge: "#ff2a1c", rim: "#ff4a30", light: "#ff2318", laser: "#ff2a20", confetti: false, beam: "#fff0e8" },
+  blue: { label: "深蓝激光", led: "blue", edge: "#3f7bff", rim: "#bcd4ff", light: "#2148ff", laser: "#3b6bff", confetti: false, beam: "#eaf2ff" },
 };
 export const CUE_ORDER = ["title", "purple", "red", "blue"];
 
@@ -110,11 +116,12 @@ const LED_DIR = `${import.meta.env.BASE_URL}stage/joker_xue_2026/led/${LED_RES}/
 // Kit photos are stored power-of-two (mips built once at upload; NPOT photos caused a
 // one-off ~60 ms frame on first close-up). SRC = true aspect of each captured screen.
 const SRC = { front: 2.7676, back: 2.7676, left: 1.5378, right: 1.5378, imag: 0.6002 };
-const END_FACE = 9.8 / 13, LONG_FACE = 45 / 13, IMAG = 12 / 20;
+const END_FACE = KIT.box.d / KIT.box.h, LONG_FACE = KIT.box.w / KIT.box.h, IMAG = KIT.imag.w / KIT.imag.h;
 
-// "object-fit: cover" for a texture on a plane of the given aspect (no stretching).
-function coverFit(t, planeAspect, a = t.image.width / t.image.height) {
-  if (a > planeAspect) {
+// "object-fit: cover" (or "contain": the LED shader draws black outside 0..1) for a texture
+// on a plane of the given aspect. No stretching either way.
+function fit(t, planeAspect, a, contain) {
+  if (a > planeAspect !== !!contain) {
     t.repeat.set(planeAspect / a, 1);
     t.offset.set((1 - planeAspect / a) / 2, 0);
   } else {
@@ -130,52 +137,49 @@ export function useLedTextures() {
   // (<img> WebP textures caused a one-off ~55-75 ms stall a few seconds after load.)
   const bitmaps = new THREE.ImageBitmapLoader().setOptions({ imageOrientation: "flipY", premultiplyAlpha: "none" });
   const loading = [];
-  const photo = (url, planeAspect, srcAspect) => {
-    const t = new THREE.Texture();
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 8;
-    t.flipY = false;
+  // one download, one texture per plane aspect it is shown on
+  const photo = (url, srcAspect, ...planes) => {
+    const ts = planes.map((pl) => {
+      const t = new THREE.Texture();
+      t.userData.contain = !!pl[1];
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 8;
+      t.flipY = false;
+      return t;
+    });
     loading.push(
       new Promise((done) =>
         bitmaps.load(
           url,
           (bmp) => {
-            t.image = bmp;
-            t.needsUpdate = true;
-            coverFit(t, planeAspect, srcAspect ?? bmp.width / bmp.height);
-            done(t);
+            ts.forEach((t, i) => {
+              t.image = bmp;
+              t.needsUpdate = true;
+              const [aspect, contain] = [].concat(planes[i]);
+              fit(t, aspect, srcAspect ?? bmp.width / bmp.height, contain);
+            });
+            done(ts);
           },
           undefined,
-          () => done(null)
+          () => done([])
         )
       )
     );
-    return t;
+    return ts;
   };
-  // The two c941445 cue plates keep their original mapping (stretched over the end face),
-  // but are now also decoded off-thread and uploaded up front: as lazy <img> textures they
-  // cost a one-off ~75 ms frame at the first cue switch.
-  const jpg = (url) => {
-    const t = new THREE.Texture();
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.anisotropy = 8;
-    t.flipY = false;
-    loading.push(new Promise((done) => bitmaps.load(url, (bmp) => { t.image = bmp; t.needsUpdate = true; done(t); }, undefined, () => done(null))));
-    return t;
-  };
+  // Before the show every face carries the tour title on black (nest_526_0004, nest_917_0001).
+  const [titleLong, titleEnd] = photo(ledTitleUrl, 0.75, [LONG_FACE, true], [END_FACE, true]);
+  const [front] = photo(`${LED_DIR}front.webp`, SRC.front, LONG_FACE);
+  const [back] = photo(`${LED_DIR}back.webp`, SRC.back, LONG_FACE);
+  const [left] = photo(`${LED_DIR}left.webp`, SRC.left, END_FACE);
+  const [right] = photo(`${LED_DIR}right.webp`, SRC.right, END_FACE);
   ledCache = {
-    // cue plates on the LED volume's end faces
-    title: jpg(ledTitleUrl), // c941445 plates, loaded exactly as before
-    red: jpg(ledFeedRedUrl),
-    purple: photo(`${LED_DIR}imag2.webp`, END_FACE, SRC.imag),
-    blue: photo(`${LED_DIR}left.webp`, END_FACE, SRC.left),
-    // LED volume long faces
-    front: photo(`${LED_DIR}front.webp`, LONG_FACE, SRC.front),
-    back: photo(`${LED_DIR}back.webp`, LONG_FACE, SRC.back),
+    // per cue: [long face +z, long face -z, both end faces] (real Nest screen captures)
+    faces: { title: [titleLong, titleLong, titleEnd], purple: [front, back, left], red: [back, back, right], blue: [front, front, left] },
     // the four IMAG towers
-    imag: [1, 2, 3, 4].map((i) => photo(`${LED_DIR}imag${i}.webp`, IMAG, SRC.imag)),
+    imag: [1, 2, 3, 4].map((i) => photo(`${LED_DIR}imag${i}.webp`, SRC.imag, IMAG)[0]),
   };
-  ledCache.ready = Promise.all(loading);
+  ledCache.ready = Promise.all(loading).then((l) => l.flat());
   return ledCache;
 }
 
@@ -314,55 +318,17 @@ function Giant(props) {
   );
 }
 
-function Reeds({ count = 2600, x = 26, z0 = 19.2, z1 = 23.8, cueColor }) {
-  const mesh = useMemo(() => {
-    const g = new THREE.ConeGeometry(0.05, 1, 3);
-    g.translate(0, 0.5, 0);
-    const m = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ color: "#7d9f4a", roughness: 0.8 }), count), o = new THREE.Object3D();
-    for (let i = 0; i < count; i++) {
-      const h = 1.1 + Math.random() * 1.2;
-      o.position.set((Math.random() * 2 - 1) * x, 0, z0 + Math.random() * (z1 - z0));
-      o.rotation.set((Math.random() - 0.5) * 0.35, Math.random() * 6, (Math.random() - 0.5) * 0.35);
-      o.scale.set(1, h, 1);
-      o.updateMatrix();
-      m.setMatrixAt(i, o.matrix);
-    }
-    return m;
-  }, [count, x, z0, z1]);
-  mesh.material.emissive.set(cueColor).multiplyScalar(0.1);
-  return <primitive object={mesh} />;
-}
-
-// ---- light FX ---------------------------------------------------------------------
-// "Volumetric" beams are open cones with an additive shader: brightness falls off along the
-// throw, the silhouette is softened by the view angle (so no hard cone edges) and a slow
-// noise band fakes haze drifting through the light. No ray-marching, two triangles per side.
-const BEAM_VS = /* glsl */ `
-varying float vY; varying float vEdge; varying vec3 vW;
-void main(){ vY = uv.y; vec4 wp = modelMatrix*vec4(position,1.); vW = wp.xyz; vec4 mv = viewMatrix*wp;
-  vEdge = abs(dot(normalize(normalMatrix*normal), normalize(-mv.xyz))); gl_Position = projectionMatrix*mv; }`;
-const BEAM_FS = /* glsl */ `
-uniform vec3 uColor; uniform float uStrength; uniform float uSoft; uniform float uT;
-varying float vY; varying float vEdge; varying vec3 vW;
-void main(){
-  float a = pow(clamp(vY,0.,1.),2.2)*uStrength;
-  a *= mix(1., smoothstep(0.,.6,vEdge), uSoft);
-  a *= mix(1., .72+.28*sin(vW.y*.21 + vW.x*.13 - uT*.6)*sin(vW.z*.17 + uT*.35), uSoft);
-  gl_FragColor = vec4(uColor*1.25, a);
-}`;
-const beamMat = (colorUniform, strength, soft) =>
-  new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    side: THREE.DoubleSide,
-    uniforms: { uColor: colorUniform, uStrength: { value: strength }, uSoft: { value: soft }, uT: ATMO.uT },
-    vertexShader: BEAM_VS,
-    fragmentShader: BEAM_FS,
-  });
+// ---- shared FX colours --------------------------------------------------------------
 // Cue colours are damped in one place (FxColors) and shared by reference: a cue change
 // never creates a material, so it can never trigger a shader compile.
-const FX = { beam: { value: new THREE.Color(CUES.title.beam) }, laser: { value: new THREE.Color(CUES.title.laser) }, bulb: new THREE.Color(CUES.title.edge).multiplyScalar(4) };
+const FX = {
+  beam: { value: new THREE.Color(CUES.title.beam) },
+  laser: { value: new THREE.Color(CUES.title.laser) },
+  white: { value: new THREE.Color("#fff4e0") },
+  bulb: new THREE.Color(CUES.title.edge).multiplyScalar(4), // LED strips / small lenses
+  rim: new THREE.Color(CUES.title.rim).multiplyScalar(5), // blinders on the roof rim + runway edge
+  rainbow: 0,
+};
 const fxTmp = new THREE.Color();
 function FxColors({ cue }) {
   useFrame((_, dt) => {
@@ -370,48 +336,180 @@ function FxColors({ cue }) {
     FX.beam.value.lerp(fxTmp.set(cue.beam), k);
     FX.laser.value.lerp(fxTmp.set(cue.laser), k);
     FX.bulb.lerp(fxTmp.set(cue.edge).multiplyScalar(4), k);
+    FX.rim.lerp(fxTmp.set(cue.rim).multiplyScalar(5), k);
+    FX.rainbow += ((cue.rainbow ? 1 : 0) - FX.rainbow) * k;
   });
   return null;
 }
 
-function Beam({ origin, length, radius, material, sweep = 0, phase = 0, tilt = [0, 0] }) {
-  const ref = useRef();
-  const geo = useMemo(() => {
-    const g = new THREE.ConeGeometry(radius, length, 20, 1, true);
-    g.translate(0, -length / 2, 0);
-    return g;
-  }, [radius, length]);
-  useFrame(({ clock }) => {
-    const t = clock.elapsedTime;
-    ref.current.rotation.set(tilt[0] + Math.sin(t * 0.7 + phase) * sweep, 0, tilt[1] + Math.cos(t * 0.5 + phase) * sweep);
-  });
-  return (
-    <group ref={ref} position={origin}>
-      <mesh geometry={geo} material={material} />
-    </group>
+// ---- geometry helpers -----------------------------------------------------------------
+function roundedRect(hw, hd, r, spacing) {
+  const pts = [], corner = (cx, cz, a0) => {
+    const n = Math.max(2, Math.round((r * Math.PI) / 2 / spacing));
+    for (let i = 0; i <= n; i++) pts.push([cx + r * Math.cos(a0 + (i / n) * (Math.PI / 2)), cz + r * Math.sin(a0 + (i / n) * (Math.PI / 2))]);
+  };
+  const line = (x0, z0, x1, z1) => {
+    const n = Math.max(1, Math.round(Math.hypot(x1 - x0, z1 - z0) / spacing));
+    for (let i = 1; i < n; i++) pts.push([x0 + ((x1 - x0) * i) / n, z0 + ((z1 - z0) * i) / n]);
+  };
+  corner(hw - r, hd - r, 0);
+  line(hw - r, hd, -hw + r, hd);
+  corner(-hw + r, hd - r, Math.PI / 2);
+  line(-hw, hd - r, -hw, -hd + r);
+  corner(-hw + r, -hd + r, Math.PI);
+  line(-hw + r, -hd, hw - r, -hd);
+  corner(hw - r, -hd + r, Math.PI * 1.5);
+  line(hw, -hd + r, hw, hd - r);
+  return pts;
+}
+const shapeOf = (pts) => new THREE.Shape(pts.map(([x, z]) => new THREE.Vector2(x, -z)));
+// flat slab from a plan outline (optionally with a hole), top at yTop, thickness h
+function slabGeo(outer, yTop, h, hole) {
+  const s = shapeOf(outer);
+  if (hole) s.holes.push(new THREE.Path(hole.map(([x, z]) => new THREE.Vector2(x, -z))));
+  const g = new THREE.ExtrudeGeometry(s, { depth: h, bevelEnabled: false, curveSegments: 4 });
+  g.rotateX(-Math.PI / 2); // shape (x, -z) → world XZ, extruded upwards
+  g.translate(0, yTop - h, 0);
+  return g;
+}
+// vertical strip following a closed plan outline; u runs in metres / cell
+function loopStrip(pts, y0, y1, cell = 1) {
+  const p = [], uv = [], nr = [];
+  let u = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length], len = Math.hypot(b[0] - a[0], b[1] - a[1]), u1 = u + len / cell, v1 = (y1 - y0) / cell;
+    const nx = (b[1] - a[1]) / len, nz = -(b[0] - a[0]) / len;
+    p.push(a[0], y0, a[1], b[0], y0, b[1], b[0], y1, b[1], a[0], y0, a[1], b[0], y1, b[1], a[0], y1, a[1]);
+    uv.push(u, 0, u1, 0, u1, v1, u, 0, u1, v1, u, v1);
+    for (let k = 0; k < 6; k++) nr.push(nx, 0, nz);
+    u = u1;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute("position", new THREE.Float32BufferAttribute(p, 3));
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute("normal", new THREE.Float32BufferAttribute(nr, 3));
+  return g;
+}
+// many box trusses in one geometry; uv in metres / cell so one repeating lattice texture fits all
+function trussBoxes(list, cell = 1.2) {
+  return mergeGeometries(
+    list.map(({ size: [w, h, d], pos }) => {
+      const g = new THREE.BoxGeometry(w, h, d), uv = g.attributes.uv;
+      const dims = [[d, h], [d, h], [w, d], [w, d], [w, h], [w, h]];
+      for (let f = 0; f < 6; f++) for (let k = 0; k < 4; k++) uv.setXY(f * 4 + k, (uv.getX(f * 4 + k) * dims[f][0]) / cell, (uv.getY(f * 4 + k) * dims[f][1]) / cell);
+      g.translate(...pos);
+      return g;
+    })
   );
 }
-
-// Moving-head wash beams fanning up from the roof rim (same count / throw as the old arch).
-function RoofBeams({ points, fx = 1 }) {
-  const mat = useMemo(() => beamMat(FX.beam, 0.13, 1), []);
-  const step = fx >= 1 ? 3 : 6;
-  return points
-    .filter((_, i) => i % step === 0)
-    .map((p, i) => <Beam key={i} origin={p} length={58} radius={7} material={mat} sweep={0.08} phase={i * 0.7} tilt={[Math.PI * (i % 2 ? 0.86 : 1.12), Math.sin(i * 1.7) * 0.45 + Math.PI * 0]} />);
+function Instances({ geometry, material, items }) {
+  const mesh = useMemo(() => {
+    const m = new THREE.InstancedMesh(geometry, material, items.length), o = new THREE.Object3D();
+    items.forEach(({ p, r = [0, 0, 0], s = [1, 1, 1] }, i) => {
+      o.position.set(...p);
+      o.rotation.set(...r);
+      o.scale.set(...s);
+      o.updateMatrix();
+      m.setMatrixAt(i, o.matrix);
+    });
+    m.computeBoundingSphere();
+    return m;
+  }, [geometry, material, items]);
+  return <primitive object={mesh} />;
 }
 
-function Lasers({ fx = 1 }) {
-  const mat = useMemo(() => beamMat(FX.laser, 0.95, 0), []);
-  const rigs = useMemo(
-    () =>
-      [...Array(18).keys()].map((k) => {
-        const x = -26 + (k * 52) / 17;
-        return { origin: [x, 3, 17.6 * (k % 2 ? 1 : -1)], phase: k * 1.3, tilt: [(k % 2 ? -1 : 1) * 1.15, (x / 26) * -0.7 + Math.PI] };
-      }),
-    []
-  );
-  return rigs.filter((_, i) => fx >= 1 || i % 2 === 0).map((r, i) => <Beam key={i} {...r} length={140} radius={0.16} material={mat} sweep={0.16} />);
+// ---- light FX ---------------------------------------------------------------------
+// Every beam in the show is one instance of a camera-facing strip: narrow at the lamp, wider
+// along the throw, soft across, with haze drifting through it. One draw call for all of them
+// (roof-top sunburst, rim curtain, runway up-lights, lasers, follow spots).
+const BEAM_VS = /* glsl */ `
+attribute vec3 aO; attribute vec3 aD; attribute vec4 aP; attribute vec3 aK;
+uniform float uT; varying vec2 vUv; varying float vKind; varying float vI; varying vec3 vW;
+void main(){
+  vec3 d = normalize(aD);
+  vec3 s1 = normalize(cross(d, abs(d.y) > .9 ? vec3(1.,0.,0.) : vec3(0.,1.,0.))), s2 = cross(d, s1);
+  float ph = aP.w;
+  d = normalize(d + aK.z*(sin(uT*.55+ph)*s1 + cos(uT*.4+ph*1.7)*s2));
+  vec3 p = aO + d*aP.x*uv.y;
+  vec3 side = normalize(cross(d, cameraPosition - p));
+  p += side*(uv.x-.5)*2.*mix(aP.y, aP.z, uv.y);
+  vUv = uv; vKind = aK.x; vW = p;
+  vI = aK.y*(.75+.25*sin(uT*1.3+ph*3.));
+  gl_Position = projectionMatrix*viewMatrix*vec4(p,1.);
+}`;
+const BEAM_FS = /* glsl */ `
+uniform vec3 uC0, uC1, uC2; uniform float uT; varying vec2 vUv; varying float vKind; varying float vI; varying vec3 vW;
+void main(){
+  float across = pow(clamp(1.-abs(vUv.x*2.-1.), 0., 1.), 1.6);
+  float along = mix(1., .12, pow(clamp(vUv.y,0.,1.),.7))*smoothstep(0.,.02,vUv.y)*(1.-smoothstep(.85,1.,vUv.y));
+  float haze = .7+.3*sin(vW.y*.23 + vW.x*.11 - uT*.5)*sin(vW.z*.19 + uT*.31);
+  vec3 c = vKind < .5 ? uC0 : vKind < 1.5 ? uC1 : uC2;
+  if (vKind > .5 && vKind < 1.5) haze = 1.;
+  gl_FragColor = vec4(c*1.3, across*along*haze*vI);
+}`;
+function Beams({ fx = 1 }) {
+  const mesh = useMemo(() => {
+    const R = KIT.roof, G = KIT.ring, r = lcg(23), list = [];
+    const add = (o, d, len, r0, r1, kind, I, sweep) => list.push({ o, d, len, r0, r1, kind, I, sweep, ph: r() * 6.28 });
+    const outward = ([x, z], hw, hd) => {
+      const dx = Math.max(0, Math.abs(x) - (hw - 6)) * Math.sign(x), dz = Math.max(0, Math.abs(z) - (hd - 6)) * Math.sign(z), l = Math.hypot(dx, dz) || 1;
+      return [dx / l, dz / l];
+    };
+    const skip = fx >= 1 ? 1 : 2;
+    // sunburst from the roof top up into the stadium roof (nest_517_0004, nest_226_0006)
+    roundedRect(R.hw - 1.5, R.hd - 1.5, R.r, 7).forEach((p, i) => {
+      if (i % skip) return;
+      const [ox, oz] = outward(p, R.hw - 1.5, R.hd - 1.5), up = 0.35 + 0.55 * r();
+      add([p[0], R.yTop, p[1]], [ox, up, oz], 95, 0.35, 2.4, 0, 0.2, 0.07);
+    });
+    // curtain of narrow beams from the roof rim down onto the runway and floor (nest_226_0002)
+    roundedRect(R.hw - 0.6, R.hd - 0.6, R.r, 3.4).forEach((p, i) => {
+      if (i % skip) return;
+      const [ox, oz] = outward(p, R.hw, R.hd), spread = 0.25 + 0.5 * r();
+      add([p[0], R.y0 - 0.4, p[1]], [ox * spread, -1, oz * spread], 30, 0.18, 1.2, 0, 0.2, 0.05);
+    });
+    // up-lights along the runway edge (nest_山顶_0005, nest_537_0008)
+    roundedRect(G.hw - 0.4, G.hd - 0.4, G.r, 4.2).forEach((p, i) => {
+      if (i % skip) return;
+      const [ox, oz] = outward(p, G.hw, G.hd), lean = 0.25 + 0.9 * r();
+      add([p[0], G.h + 0.3, p[1]], [ox * lean, 1, oz * lean], 52, 0.14, 1.0, 0, 0.26, 0.1);
+    });
+    // lasers from the roof corners and deck ends across the bowl (nest_226_0004, nest_537_0008)
+    for (let k = 0; k < (fx >= 1 ? 28 : 14); k++) {
+      const sx = k % 2 ? 1 : -1, sz = k % 4 < 2 ? 1 : -1, low = k % 3 === 0;
+      const o = low ? [sx * (KIT.deck.hw - 1), KIT.deck.h + 0.4, sz * (KIT.deck.hd - 1)] : [sx * (R.hw - 2), R.y0 - 0.5, sz * (R.hd - 2)];
+      add(o, [sx * (0.3 + r()), low ? 0.1 + r() * 0.5 : -0.05 - r() * 0.3, sz * (0.2 + r())], 170, 0.05, 0.09, 1, 0.85, 0.12);
+    }
+    // two follow spots on the singer
+    for (const from of [[-24, R.y0 - 1, 15], [24, R.y0 - 1, -15]]) {
+      const d = [0 - from[0], KIT.deck.h + 1 - from[1], 0 - from[2]];
+      add(from, d, Math.hypot(...d), 0.25, 1.1, 2, 0.5, 0);
+    }
+    const g = new THREE.PlaneGeometry(1, 1);
+    g.translate(0, 0.5, 0);
+    const n = list.length, aO = new Float32Array(n * 3), aD = new Float32Array(n * 3), aP = new Float32Array(n * 4), aK = new Float32Array(n * 3);
+    list.forEach((b, i) => {
+      aO.set(b.o, i * 3);
+      aD.set(b.d, i * 3);
+      aP.set([b.len, b.r0, b.r1, b.ph], i * 4);
+      aK.set([b.kind, b.I, b.sweep], i * 3);
+    });
+    const ig = new THREE.InstancedBufferGeometry();
+    ig.index = g.index;
+    ig.setAttribute("position", g.attributes.position);
+    ig.setAttribute("uv", g.attributes.uv);
+    ig.setAttribute("aO", new THREE.InstancedBufferAttribute(aO, 3));
+    ig.setAttribute("aD", new THREE.InstancedBufferAttribute(aD, 3));
+    ig.setAttribute("aP", new THREE.InstancedBufferAttribute(aP, 4));
+    ig.setAttribute("aK", new THREE.InstancedBufferAttribute(aK, 3));
+    ig.instanceCount = n;
+    const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uC0: FX.beam, uC1: FX.laser, uC2: FX.white, uT: ATMO.uT }, vertexShader: BEAM_VS, fragmentShader: BEAM_FS });
+    const m = new THREE.Mesh(ig, mat);
+    m.frustumCulled = false;
+    m.renderOrder = 5;
+    return m;
+  }, [fx]);
+  return <primitive object={mesh} />;
 }
 
 function Confetti({ count = 7000, active }) {
@@ -458,22 +556,23 @@ function Confetti({ count = 7000, active }) {
   return <points ref={ref} geometry={geo} material={mat} />;
 }
 
+// Heavy show haze: big soft puffs in the air that take the wash colour, plus low smoke
+// rolling off the runway (nest_226_0002, nest_517_0007, nest_山顶_0006).
 function Haze({ fx = 1 }) {
   const map = useMemo(glowTex, []);
-  const mat = useMemo(() => new THREE.SpriteMaterial({ map, transparent: true, opacity: 0.055, depthWrite: false, blending: THREE.AdditiveBlending }), [map]);
-  const low = useMemo(() => new THREE.SpriteMaterial({ map, transparent: true, opacity: 0.05, depthWrite: false, blending: THREE.AdditiveBlending }), [map]);
+  const mat = useMemo(() => new THREE.SpriteMaterial({ map, transparent: true, opacity: 0.045, depthWrite: false, blending: THREE.AdditiveBlending }), [map]);
+  const low = useMemo(() => new THREE.SpriteMaterial({ map, transparent: true, opacity: 0.06, depthWrite: false, blending: THREE.AdditiveBlending }), [map]);
   const puffs = useMemo(() => {
-    const r = lcg(5), n = fx >= 1 ? 16 : 8;
-    return [...Array(n).keys()].map(() => ({ p: [(r() * 2 - 1) * 38, 6 + r() * 24, (r() * 2 - 1) * 28], s: 26 + r() * 26 }));
+    const r = lcg(5), n = fx >= 1 ? 18 : 8;
+    return [...Array(n).keys()].map(() => ({ p: [(r() * 2 - 1) * 46, 5 + r() * 30, (r() * 2 - 1) * 32], s: 28 + r() * 30 }));
   }, [fx]);
-  // low smoke hugging the deck edge (the real show runs heavy floor haze)
   const ground = useMemo(() => {
-    const r = lcg(9), n = fx >= 1 ? 10 : 5;
-    return [...Array(n).keys()].map((i) => ({ p: [Math.cos((i / n) * 6.283) * 26 + (r() - 0.5) * 8, 3.2 + r() * 1.5, Math.sin((i / n) * 6.283) * 15 + (r() - 0.5) * 6], s: [30 + r() * 14, 7 + r() * 3] }));
+    const r = lcg(9), n = fx >= 1 ? 14 : 6;
+    return [...Array(n).keys()].map((i) => ({ p: [Math.cos((i / n) * 6.283) * 30 + (r() - 0.5) * 8, 2.6 + r() * 2.5, Math.sin((i / n) * 6.283) * 19 + (r() - 0.5) * 6], s: [26 + r() * 16, 7 + r() * 5] }));
   }, [fx]);
   useFrame(() => {
-    mat.color.copy(ATMO.uCue.value);
-    low.color.copy(ATMO.uCue.value).lerp(fxTmp.set("#ffffff"), 0.35);
+    mat.color.copy(ATMO.uCue.value).lerp(fxTmp.set("#ffffff"), 0.15);
+    low.color.copy(ATMO.uCue.value).lerp(fxTmp.set("#ffffff"), 0.45);
   });
   return (
     <>
@@ -483,7 +582,9 @@ function Haze({ fx = 1 }) {
   );
 }
 
-function Bulbs({ points, size = 0.3 }) {
+// Lamp lenses. kind "rim" = big warm blinders (turn rainbow on the confetti cue, as in
+// nest_226_0005 / nest_917_0005), kind "bulb" = small cue-coloured lenses.
+function Bulbs({ points, size = 0.3, kind = "bulb" }) {
   const mesh = useMemo(() => {
     const m = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 8, 6), new THREE.MeshBasicMaterial({ toneMapped: false }), points.length), o = new THREE.Object3D();
     points.forEach((p, i) => {
@@ -491,50 +592,67 @@ function Bulbs({ points, size = 0.3 }) {
       o.scale.setScalar(size);
       o.updateMatrix();
       m.setMatrixAt(i, o.matrix);
+      m.setColorAt(i, fxTmp.set("#ffffff"));
     });
+    m.userData.w = 0;
     return m;
   }, [points, size]);
-  useFrame(() => mesh.material.color.copy(FX.bulb));
+  useFrame(() => {
+    mesh.material.color.copy(kind === "rim" ? FX.rim : FX.bulb);
+    if (kind !== "rim") return;
+    const w = FX.rainbow;
+    if (Math.abs(w - mesh.userData.w) < 0.004) return;
+    mesh.userData.w = w;
+    for (let i = 0; i < points.length; i++) mesh.setColorAt(i, fxTmp.setHSL((i * 0.071) % 1, 0.95, 0.5).lerp(WHITE, 1 - w));
+    mesh.instanceColor.needsUpdate = true;
+  });
   return <primitive object={mesh} />;
 }
+const WHITE = new THREE.Color("#ffffff");
 
 // ---- LED surfaces -------------------------------------------------------------------
-// Photo on an LED wall: per-pixel diode mask and module seams up close (both fade out with
-// distance, so no moiré), HDR gain so the wall glows through the bloom like a real screen.
+// Photo on an LED wall: per-pixel diode mask and cabinet seams up close (both fade out with
+// distance, so no moiré), a thin lit bezel around the face (nest_537_0006, nest_537_0009),
+// HDR gain so the wall glows through the bloom like a real screen.
 const LED_VS = /* glsl */ `
 uniform vec2 uRep; uniform vec2 uOff; varying vec2 vUv; varying vec2 vP; varying float vDist;
 void main(){ vUv = uv*uRep + uOff; vP = uv; vec4 mv = modelViewMatrix*vec4(position,1.); vDist = length(mv.xyz); gl_Position = projectionMatrix*mv; }`;
 const LED_FS = /* glsl */ `
 ${GLSL_ATMO}
-uniform sampler2D uMap; uniform vec2 uSize; uniform float uGain;
+uniform sampler2D uMap; uniform vec2 uSize; uniform float uGain; uniform float uBezel; uniform float uFade;
 varying vec2 vUv; varying vec2 vP; varying float vDist;
 void main(){
   vec3 c = texture2D(uMap, vUv).rgb;
+  // "contain" plates (the title card) melt into the black wall instead of ending in a box
+  c *= mix(1., smoothstep(0.,.22,vUv.x)*smoothstep(1.,.78,vUv.x), uFade);
   vec2 px = vP*uSize/0.05;                         // 50 mm pixel pitch (drawn coarser than real)
   float fw = max(fwidth(px.x), fwidth(px.y));
   vec2 d = abs(fract(px)-.5);
   float diode = mix(1., 1.35*(1.-smoothstep(.28,.5,max(d.x,d.y))), 1.-smoothstep(.25,.7,fw));
-  vec2 m = vP*uSize/1.0;                           // 1 m cabinets
+  vec2 m = vP*uSize/vec2(1.,.5);                   // 1.0 x 0.5 m cabinets (nest_526_0004)
   vec2 md = abs(fract(m)-.5);
-  float seam = mix(1., 1.-.5*step(.485,max(md.x,md.y)), 1.-smoothstep(.02,.08,max(fwidth(m.x),fwidth(m.y))));
-  c = c*uGain*diode*seam + vec3(.004);
+  float seam = mix(1., 1.-.55*step(.47,max(md.x,md.y)), 1.-smoothstep(.02,.1,max(fwidth(m.x),fwidth(m.y))));
+  c = c*uGain*diode*seam + vec3(.006,.006,.007)*seam;
+  vec2 e = min(vP, 1.-vP)*uSize;
+  c += uBezel*(1.-smoothstep(.06,.16,min(e.x,e.y)))*vec3(1.5,1.55,1.7);
   c = applyFog(c, vDist*.35);
   gl_FragColor = vec4(c,1.);
   ${GLSL_OUT}
 }`;
-function useLedMaterial(tex, w, h, gain = 1.7) {
+function useLedMaterial(tex, w, h, gain = 1.7, bezel = 1) {
   const mat = useMemo(
-    () => new THREE.ShaderMaterial({ uniforms: atmoUniforms({ uMap: { value: null }, uRep: { value: new THREE.Vector2(1, 1) }, uOff: { value: new THREE.Vector2() }, uSize: { value: new THREE.Vector2(w, h) }, uGain: { value: gain } }), vertexShader: LED_VS, fragmentShader: LED_FS }),
-    [w, h, gain]
+    () => new THREE.ShaderMaterial({ uniforms: atmoUniforms({ uMap: { value: null }, uRep: { value: new THREE.Vector2(1, 1) }, uOff: { value: new THREE.Vector2() }, uSize: { value: new THREE.Vector2(w, h) }, uGain: { value: gain }, uBezel: { value: bezel }, uFade: { value: 0 } }), vertexShader: LED_VS, fragmentShader: LED_FS }),
+    [w, h, gain, bezel]
   );
   // repeat/offset are filled in by coverFit when the photo arrives → share them by reference
   mat.uniforms.uMap.value = tex;
+  mat.uniforms.uFade.value = tex.userData.contain ? 1 : 0;
   mat.uniforms.uRep.value = tex.repeat;
   mat.uniforms.uOff.value = tex.offset;
   return mat;
 }
-function LedPlane({ tex, w, h, gain, ...props }) {
-  const mat = useLedMaterial(tex, w, h, gain);
+function LedPlane({ tex, w, h, gain, bezel, ...props }) {
+  const mat = useLedMaterial(tex, w, h, gain, bezel);
   return (
     <mesh {...props} material={mat}>
       <planeGeometry args={[w, h]} />
@@ -542,142 +660,150 @@ function LedPlane({ tex, w, h, gain, ...props }) {
   );
 }
 
-const hdr = (c, k) => new THREE.Color(c).multiplyScalar(k);
 const BLACK = <meshStandardMaterial color="#070709" roughness={0.6} metalness={0.4} />;
-
-function Truss({ size, position, map }) {
-  const tex = useMemo(() => {
-    const t = map.clone();
-    t.repeat.set(Math.max(1, Math.round(Math.max(size[0], size[2]) / 2)), Math.max(1, Math.round(size[1] / 2)));
-    t.needsUpdate = true;
-    return t;
-  }, [map, size]);
-  return (
-    <mesh position={position}>
-      <boxGeometry args={size} />
-      <meshStandardMaterial color="#23232b" map={tex} alphaMap={tex} alphaTest={0.4} side={THREE.DoubleSide} metalness={0.6} roughness={0.5} />
-    </mesh>
-  );
-}
+const useTrussMat = (map) => useMemo(() => new THREE.MeshStandardMaterial({ color: "#2a2b33", map, alphaMap: map, alphaTest: 0.4, side: THREE.DoubleSide, metalness: 0.6, roughness: 0.45 }), [map]);
 
 // Edge light strip whose colour follows the cue without re-creating materials.
-function EdgeStrip(props) {
+function EdgeStrip({ size, geometry, gain = 1.1, ...props }) {
   const ref = useRef();
-  useFrame(() => ref.current.color.copy(FX.bulb).multiplyScalar(1.1));
+  useFrame(() => ref.current.color.copy(FX.bulb).multiplyScalar(gain));
   return (
-    <mesh {...props}>
-      <boxGeometry args={props.size} />
-      <meshBasicMaterial ref={ref} toneMapped={false} />
+    <mesh {...props} geometry={geometry}>
+      {!geometry && <boxGeometry args={size} />}
+      <meshBasicMaterial ref={ref} toneMapped={false} side={THREE.DoubleSide} />
     </mesh>
   );
 }
 
-// Vertical IMAG tower (four around the stage): black monolith, portrait LED, truss spine.
-function ScreenTower({ position, rotationY, plate, truss, w = 12, h = 18, base = 3 }) {
+// IMAG tower (nest_526_0001, nest_718_0001, nest_大对角_0003): a deep black scaffold box at a
+// field corner, a portrait LED on both faces, a light strip down each screen edge.
+function ScreenTower({ position, rotationY, plate, trussMat }) {
+  const { w, h, base, depth } = KIT.imag;
+  const scaffold = useMemo(() => trussBoxes([{ size: [w + 1.4, base + h + 0.8, depth], pos: [0, (base + h + 0.8) / 2, 0] }], 1.5), [w, h, base, depth]);
   return (
     <group position={position} rotation={[0, rotationY, 0]}>
-      <LedPlane tex={plate} w={w} h={h} gain={1.75} position={[0, base + h / 2, 0.05]} />
-      <mesh position={[0, base + h / 2, -0.35]}>
-        <boxGeometry args={[w + 0.5, h + 0.5, 0.6]} />
-        {BLACK}
-      </mesh>
-      <mesh position={[0, base / 2, -0.35]}>
-        <boxGeometry args={[w + 0.5, base, 0.9]} />
-        {BLACK}
-      </mesh>
-      {[-1, 1].map((s) => (
-        <EdgeStrip key={s} position={[(s * w) / 2 + s * 0.14, base + h / 2, 0.12]} size={[0.14, h, 0.14]} />
+      <mesh geometry={scaffold} material={trussMat} />
+      {[1, -1].map((s) => (
+        <group key={s} rotation={[0, s > 0 ? 0 : Math.PI, 0]}>
+          <LedPlane tex={plate} w={w} h={h} gain={1.75} bezel={0} position={[0, base + h / 2, depth / 2 + 0.12]} />
+          <mesh position={[0, base + h / 2, depth / 2 - 0.1]}>
+            <boxGeometry args={[w + 0.5, h + 0.5, 0.4]} />
+            {BLACK}
+          </mesh>
+          {[-1, 1].map((e) => (
+            <EdgeStrip key={e} position={[(e * w) / 2 + e * 0.22, base + h / 2, depth / 2 + 0.16]} size={[0.2, h, 0.12]} />
+          ))}
+        </group>
       ))}
-      <Truss size={[w + 1.2, base + h + 1, 2]} position={[0, (base + h + 1) / 2, -1.7]} map={truss} />
+      {/* black drape + flight cases at the foot */}
+      <mesh position={[0, base / 2, 0]}>
+        <boxGeometry args={[w + 1.6, base, depth + 0.6]} />
+        <meshStandardMaterial color="#050506" roughness={0.9} />
+      </mesh>
     </group>
   );
 }
 
-// ---- roof canopy (the real 万兽之王 rig: a flat mother-grid slab on columns, wider than the
-// LED box, lined with bulbs; lights, PA and the LED volume all hang from it) ---------------
-const ROOF = { hw: 30, hd: 13.5, r: 5, y0: 30.4, y1: 32 };
-function roundedRect(hw, hd, r, spacing) {
-  const pts = [], corner = (cx, cz, a0) => {
-    const n = Math.max(2, Math.round((r * Math.PI) / 2 / spacing));
-    for (let i = 0; i <= n; i++) pts.push([cx + r * Math.cos(a0 + (i / n) * (Math.PI / 2)), cz + r * Math.sin(a0 + (i / n) * (Math.PI / 2))]);
-  };
-  const line = (x0, z0, x1, z1) => {
-    const n = Math.max(1, Math.round(Math.hypot(x1 - x0, z1 - z0) / spacing));
-    for (let i = 1; i < n; i++) pts.push([x0 + ((x1 - x0) * i) / n, z0 + ((z1 - z0) * i) / n]);
-  };
-  corner(hw - r, hd - r, 0);
-  line(hw - r, hd, -hw + r, hd);
-  corner(-hw + r, hd - r, Math.PI / 2);
-  line(-hw, hd - r, -hw, -hd + r);
-  corner(-hw + r, -hd + r, Math.PI);
-  line(-hw + r, -hd, hw - r, -hd);
-  corner(hw - r, -hd + r, Math.PI * 1.5);
-  line(hw, -hd + r, hw, hd - r);
-  return pts;
-}
-
-function RoofCanopy({ truss, detail = 1, fx = 1 }) {
-  const { slab, rim, heads, headBodies, beamPts, grid } = useMemo(() => {
-    const outline = roundedRect(ROOF.hw, ROOF.hd, ROOF.r, 1.2);
-    const shape = new THREE.Shape(outline.map(([x, z]) => new THREE.Vector2(x, z)));
-    const slab = new THREE.ExtrudeGeometry(shape, { depth: ROOF.y1 - ROOF.y0, bevelEnabled: false, curveSegments: 4 });
-    slab.rotateX(Math.PI / 2); // shape (x, z) → world XZ, extruded downwards
-    slab.translate(0, ROOF.y1, 0);
-    const rim = roundedRect(ROOF.hw + 0.25, ROOF.hd + 0.25, ROOF.r + 0.25, detail >= 1 ? 1.25 : 2.5).map(([x, z]) => [x, ROOF.y0 + 0.15, z]);
-    // moving heads under the overhang, between the LED box and the rim
-    const ring = roundedRect(ROOF.hw - 2.6, ROOF.hd - 2.2, ROOF.r - 1.5, detail >= 1 ? 3.1 : 6.2);
-    const heads = ring.map(([x, z]) => [x, ROOF.y0 - 2.15, z]), headBodies = ring.map(([x, z]) => [x, ROOF.y0 - 1.5, z]);
-    const beamPts = roundedRect(ROOF.hw - 1, ROOF.hd - 1, ROOF.r, 2.1).map(([x, z]) => [x, ROOF.y1 + 0.2, z]);
+// ---- roof canopy --------------------------------------------------------------------
+// The real rig (nest_526_0004, nest_首场_0001, nest_大对角_0006): an open mother-grid of
+// truss, much wider than the LED volume, rounded corners; a deep rim carrying a row of
+// blinders between two LED strip lines; hundreds of fixtures under it; a dark cover on top.
+function RoofCanopy({ trussMat, truss, detail = 1 }) {
+  const R = KIT.roof;
+  const parts = useMemo(() => {
+    const outline = roundedRect(R.hw, R.hd, R.r, 1.2);
+    const fascia = loopStrip(outline, R.y0, R.y1, 1.2);
+    const stripLo = loopStrip(roundedRect(R.hw + 0.08, R.hd + 0.08, R.r + 0.08, 1.2), R.y0 + 0.1, R.y0 + 0.28);
+    const stripHi = loopStrip(roundedRect(R.hw + 0.08, R.hd + 0.08, R.r + 0.08, 1.2), R.y1 - 0.28, R.y1 - 0.1);
+    const cover = slabGeo(roundedRect(R.hw - 0.3, R.hd - 0.3, R.r, 1.2), R.yTop, R.yTop - R.y1 - 0.05);
     const grid = truss.clone();
-    grid.repeat.set(30, 14);
+    grid.repeat.set((R.hw * 2) / 2.4, (R.hd * 2) / 2.4);
     grid.needsUpdate = true;
-    return { slab, rim, heads, headBodies, beamPts, grid };
-  }, [truss, detail]);
-  const bodies = useMemo(() => {
-    const m = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.34, 0.42, 1.1, 8), new THREE.MeshStandardMaterial({ color: "#08080a", roughness: 0.5, metalness: 0.5 }), headBodies.length), o = new THREE.Object3D();
-    headBodies.forEach((p, i) => {
-      o.position.set(...p);
-      o.updateMatrix();
-      m.setMatrixAt(i, o.matrix);
-    });
-    return m;
-  }, [headBodies]);
+    // long + cross trusses the fixtures hang from
+    const boxes = [];
+    for (const z of [-R.hd + 1.6, -R.hd + 4.6, R.hd - 4.6, R.hd - 1.6]) boxes.push({ size: [R.hw * 2 - 9, 1.2, 1.2], pos: [0, R.y0 - 0.6, z] });
+    for (let i = -3; i <= 3; i++) boxes.push({ size: [1.2, 1.2, R.hd * 2 - 5], pos: [i * 7.4, R.y0 - 0.6, 0] });
+    const B = KIT.box;
+    // blinders on the rim, between the two strip lines
+    const rim = roundedRect(R.hw + 0.3, R.hd + 0.3, R.r + 0.3, detail >= 1 ? 1.7 : 3.4).map(([x, z]) => [x, (R.y0 + R.y1) / 2, z]);
+    // moving heads / washes hanging under the overhang (outside the LED volume)
+    const heads = [];
+    const step = detail >= 1 ? 2.3 : 4.6;
+    for (let x = -R.hw + 1.6; x <= R.hw - 1.6; x += step)
+      for (let z = -R.hd + 1.6; z <= R.hd - 1.6; z += step) {
+        const cx = Math.max(0, Math.abs(x) - (R.hw - R.r)), cz = Math.max(0, Math.abs(z) - (R.hd - R.r));
+        if (Math.hypot(cx, cz) > R.r - 1.4) continue; // outside the rounded corner
+        if (Math.abs(x) < B.w / 2 + 0.6 && Math.abs(z) < B.d / 2 + 0.6) continue; // LED volume is here
+        heads.push([x, R.y0 - 1.25, z]);
+      }
+    return { fascia, stripLo, stripHi, cover, grid, boxes: trussBoxes(boxes), rim, heads };
+  }, [R, truss, detail]);
+  const headGeo = useMemo(() => new THREE.CylinderGeometry(0.3, 0.38, 0.9, 8), []);
+  const headMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#08080a", roughness: 0.5, metalness: 0.5 }), []);
+  const headItems = useMemo(() => parts.heads.map(([x, y, z]) => ({ p: [x, y + 0.55, z] })), [parts]);
   return (
     <group name="roof-canopy">
-      <mesh geometry={slab}>
-        <meshStandardMaterial color="#0a0a0d" roughness={0.95} metalness={0} />
+      <mesh geometry={parts.cover}>
+        <meshBasicMaterial color="#060608" />
       </mesh>
-      {/* mother grid: truss lattice under the slab */}
-      <mesh position={[0, ROOF.y0 - 0.06, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[ROOF.hw * 2 - 1.5, ROOF.hd * 2 - 1.5]} />
-        <meshStandardMaterial color="#2a2a33" map={grid} alphaMap={grid} alphaTest={0.4} metalness={0.6} roughness={0.5} side={THREE.DoubleSide} />
-      </mesh>
-      {/* perimeter + cross trusses the fixtures hang from */}
-      {[ROOF.hd - 2.2, -(ROOF.hd - 2.2)].map((z) => <Truss key={z} size={[ROOF.hw * 2 - 8, 1.1, 1.1]} position={[0, ROOF.y0 - 0.7, z]} map={truss} />)}
-      {[ROOF.hw - 2.6, -(ROOF.hw - 2.6)].map((x) => <Truss key={x} size={[1.1, 1.1, ROOF.hd * 2 - 8]} position={[x, ROOF.y0 - 0.7, 0]} map={truss} />)}
-      <primitive object={bodies} />
-      <Bulbs points={heads} size={0.24} />
-      <Bulbs points={rim} size={0.3} />
-      <RoofBeams points={beamPts} fx={fx} />
-      {/* line-array PA hangs at the four corners, outside the LED faces */}
-      {detail >= 1 &&
-        [[1, 1], [1, -1], [-1, 1], [-1, -1]].map(([sx, sz]) => (
-          <group key={`${sx}${sz}`} position={[sx * (ROOF.hw - 3.6), ROOF.y0 - 1.2, sz * (ROOF.hd - 3)]} rotation={[0, Math.atan2(sx, sz), 0]}>
-            {[...Array(9).keys()].map((i) => (
-              <mesh key={i} position={[0, -0.7 * i - 0.4, 0.035 * i * i]} rotation={[0.045 * i, 0, 0]}>
-                <boxGeometry args={[1.25, 0.62, 0.8]} />
-                <meshStandardMaterial color="#0c0c0f" roughness={0.75} metalness={0.2} />
-              </mesh>
-            ))}
-          </group>
-        ))}
+      {[R.y0, R.y1].map((y) => (
+        <mesh key={y} position={[0, y, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[R.hw * 2 - 2.5, R.hd * 2 - 2.5]} />
+          <meshStandardMaterial color="#2a2b33" map={parts.grid} alphaMap={parts.grid} alphaTest={0.4} metalness={0.6} roughness={0.45} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+      <mesh geometry={parts.fascia} material={trussMat} />
+      <mesh geometry={parts.boxes} material={trussMat} />
+      <EdgeStrip geometry={parts.stripLo} gain={0.9} />
+      <EdgeStrip geometry={parts.stripHi} gain={0.9} />
+      <Instances geometry={headGeo} material={headMat} items={headItems} />
+      <Bulbs points={parts.heads} size={0.17} />
+      <Bulbs points={parts.rim} size={0.34} kind="rim" />
     </group>
   );
 }
 
-// Glossy show deck: dark, with a faint LED-floor grid and the wash pooling on it.
+// Line-array PA: J-shaped hangs in front of the LED faces (nest_526_0004, nest_大对角_0006).
+function PaHangs() {
+  const B = KIT.box;
+  const { boxes, cables } = useMemo(() => {
+    const boxes = [], cables = [], top = B.y0 + B.h - 1.5, N = 11;
+    const hang = (x, z, ry) => {
+      const o = new THREE.Object3D(), c = new THREE.Object3D();
+      o.position.set(x, 0, z);
+      o.rotation.y = ry;
+      o.updateMatrix();
+      for (let i = 0; i < N; i++) {
+        c.position.set(0, top - 0.62 * i, -0.03 * i * i);
+        c.rotation.set(-0.04 * i, 0, 0);
+        c.updateMatrix();
+        const m = o.matrix.clone().multiply(c.matrix), p = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3();
+        m.decompose(p, q, s);
+        const e = new THREE.Euler().setFromQuaternion(q);
+        boxes.push({ p: p.toArray(), r: [e.x, e.y, e.z] });
+      }
+      cables.push({ p: [x, (top + KIT.roof.y0) / 2 + 0.3, z], s: [1, KIT.roof.y0 - top, 1] });
+    };
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) hang(sx * (B.w / 2 - 6), sz * (B.d / 2 + 1.7), sz > 0 ? 0 : Math.PI);
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) hang(sx * (B.w / 2 + 1.7), sz * 5, sx > 0 ? Math.PI / 2 : -Math.PI / 2);
+    return { boxes, cables };
+  }, [B]);
+  const boxGeo = useMemo(() => new THREE.BoxGeometry(1.3, 0.58, 0.85), []);
+  const cabGeo = useMemo(() => new THREE.CylinderGeometry(0.04, 0.04, 1, 5), []);
+  const mat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#0b0b0e", roughness: 0.7, metalness: 0.25 }), []);
+  return (
+    <>
+      <Instances geometry={boxGeo} material={mat} items={boxes} />
+      <Instances geometry={cabGeo} material={mat} items={cables} />
+    </>
+  );
+}
+
+// Glossy black show deck + runway. The main deck is an LED floor: rows of lit tiles that
+// breathe with the cue (nest_皇帝位_0010, nest_718_0006); everything mirrors the wash.
 const DECK_FS = /* glsl */ `
 ${GLSL_ATMO}
+uniform vec2 uDeck;
 varying vec3 vW; varying vec3 vN; varying float vDist;
 void main(){
   vec3 base = vec3(.012,.013,.016);
@@ -686,11 +812,17 @@ void main(){
     float line = 1.-smoothstep(.0,.03,.5-max(d.x,d.y));
     float fade = 1.-smoothstep(.05,.3,max(fwidth(g.x),fwidth(g.y)));
     float pool = exp(-dot(vW.xz*vec2(1.,2.2),vW.xz*vec2(1.,2.2))/900.);
-    vec3 refl = uCue*(.03+.30*pool) + uEdge*.02;
-    // grazing-angle sheen: the LED box above mirrors in the deck when seen from low seats
+    vec3 refl = uCue*(.04+.34*pool) + uEdge*.02;
     vec3 v = normalize(cameraPosition - vW);
     float fres = pow(1.-max(v.y,0.),4.);
     base += refl*(.3+1.6*fres) + line*fade*uEdge*.04;
+    if (abs(vW.x) < uDeck.x && abs(vW.z) < uDeck.y) {
+      vec2 tg = vW.xz/vec2(2.2,2.2); vec2 tc = floor(tg), tf = abs(fract(tg)-.5);
+      float tile = (1.-smoothstep(.26,.31,tf.x))*(1.-smoothstep(.16,.21,tf.y));
+      float on = step(.35, hash12(tc + floor(uT*.5))) * (.55+.45*sin(uT*1.7 + tc.x*.9 + tc.y*1.3));
+      float tfade = 1.-smoothstep(.25,.9,max(fwidth(tg.x),fwidth(tg.y)));
+      base += mix(.18*.35, tile, tfade)*on*(uCue*.9 + vec3(.35))*.9;
+    }
   } else base += uCue*.02;
   base = applyFog(base, vDist);
   gl_FragColor = vec4(base,1.);
@@ -700,32 +832,103 @@ const DECK_VS = /* glsl */ `
 varying vec3 vW; varying vec3 vN; varying float vDist;
 void main(){ vec4 wp = modelMatrix*vec4(position,1.); vW = wp.xyz; vN = normal; vec4 mv = viewMatrix*wp; vDist = length(mv.xyz); gl_Position = projectionMatrix*mv; }`;
 
-// The singer at stage centre with two follow spots from the roof rim and a light pool.
-const SPOT_WHITE = { value: new THREE.Color("#fff4e0") };
+function DeckAndRunway({ detail = 1 }) {
+  const G = KIT.ring, D = KIT.deck;
+  const deckMat = useMemo(() => new THREE.ShaderMaterial({ uniforms: atmoUniforms({ uDeck: { value: new THREE.Vector2(D.hw - 0.6, D.hd - 0.6) } }), vertexShader: DECK_VS, fragmentShader: DECK_FS }), [D]);
+  const parts = useMemo(() => {
+    const outer = roundedRect(G.hw, G.hd, G.r, 1.2), inner = roundedRect(G.hw - G.w, G.hd - G.w, G.r - G.w, 1.2).reverse();
+    const ring = slabGeo(outer, G.h, G.h, inner);
+    const moat = slabGeo(roundedRect(G.hw - 0.2, G.hd - 0.2, G.r, 1.2), 0.12, 0.1);
+    const strip = loopStrip(roundedRect(G.hw + 0.05, G.hd + 0.05, G.r + 0.05, 1.2), G.h - 0.3, G.h - 0.08);
+    const blinders = roundedRect(G.hw - 0.25, G.hd - 0.25, G.r, detail >= 1 ? 1.6 : 3.2).map(([x, z]) => [x, G.h + 0.16, z]);
+    const deckEdge = roundedRect(D.hw + 0.05, D.hd + 0.05, 0.3, 1.1).map(([x, z]) => [x, D.h - 0.2, z]);
+    return { ring, moat, strip, blinders, deckEdge };
+  }, [G, D, detail]);
+  return (
+    <group name="deck">
+      <mesh position={[0, D.h / 2, 0]} material={deckMat}>
+        <boxGeometry args={[D.hw * 2, D.h, D.hd * 2]} />
+      </mesh>
+      <mesh geometry={parts.ring} material={deckMat} />
+      {/* bridges from the deck out to the runway at both ends and both sides */}
+      {[-1, 1].map((s) => (
+        <mesh key={`x${s}`} position={[s * (D.hw + (G.hw - G.w - D.hw) / 2), G.h / 2, 0]} material={deckMat}>
+          <boxGeometry args={[G.hw - G.w - D.hw + 0.4, G.h, 9]} />
+        </mesh>
+      ))}
+      {[-1, 1].map((s) => (
+        <mesh key={`z${s}`} position={[0, G.h / 2, s * (D.hd + (G.hd - G.w - D.hd) / 2)]} material={deckMat}>
+          <boxGeometry args={[7, G.h, G.hd - G.w - D.hd + 0.4]} />
+        </mesh>
+      ))}
+      <mesh geometry={parts.moat}>
+        <meshStandardMaterial color="#050506" roughness={0.9} />
+      </mesh>
+      <EdgeStrip geometry={parts.strip} gain={0.8} />
+      <Bulbs points={parts.blinders} size={0.2} kind="rim" />
+      <Bulbs points={parts.deckEdge} size={0.07} />
+    </group>
+  );
+}
+
+// Reed / pampas belt between the runway and the floor seats, with the black front-fill
+// speakers standing in it (nest_526_0001, nest_526_0004, nest_首场_0001).
+function Reeds({ count = 2600, cueColor }) {
+  const G = KIT.ring;
+  const { mesh, cubes } = useMemo(() => {
+    const r = lcg(41);
+    const zones = [
+      [-G.hw - 1.5, G.hw + 1.5, G.hd + 0.7, G.hd + 5.6, 5],
+      [-G.hw - 1.5, G.hw + 1.5, -G.hd - 3.4, -G.hd - 0.7, 3],
+      [G.hw + 0.5, G.hw + 2, -G.hd + 4, G.hd - 4, 1],
+      [-G.hw - 2, -G.hw - 0.5, -G.hd + 4, G.hd - 4, 1],
+    ];
+    const total = zones.reduce((a, z) => a + z[4], 0);
+    const g = new THREE.ConeGeometry(0.06, 1, 3);
+    g.translate(0, 0.5, 0);
+    const m = new THREE.InstancedMesh(g, new THREE.MeshStandardMaterial({ color: "#86a852", roughness: 0.8 }), count), o = new THREE.Object3D();
+    let i = 0;
+    for (const [x0, x1, z0, z1, wgt] of zones) {
+      const n = Math.round((count * wgt) / total);
+      for (let k = 0; k < n && i < count; k++, i++) {
+        const h = 1.0 + r() * 1.3;
+        o.position.set(x0 + r() * (x1 - x0), 0, z0 + r() * (z1 - z0));
+        o.rotation.set((r() - 0.5) * 0.35, r() * 6, (r() - 0.5) * 0.35);
+        o.scale.set(1, h, 1);
+        o.updateMatrix();
+        m.setMatrixAt(i, o.matrix);
+      }
+    }
+    m.count = i;
+    const cubes = [];
+    for (let k = 0; k < 26; k++) cubes.push({ p: [-G.hw + ((k % 13) + 0.5) * ((G.hw * 2) / 13), 0.55, k < 13 ? G.hd + 2.6 + r() * 1.5 : -G.hd - 1.6 - r() * 0.9], r: [0, (r() - 0.5) * 0.3, 0] });
+    return { mesh: m, cubes };
+  }, [count, G]);
+  mesh.material.emissive.set(cueColor).multiplyScalar(0.1);
+  const cubeGeo = useMemo(() => new THREE.BoxGeometry(1.1, 1.1, 1), []);
+  const cubeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: "#08080a", roughness: 0.8 }), []);
+  return (
+    <>
+      <primitive object={mesh} />
+      <Instances geometry={cubeGeo} material={cubeMat} items={cubes} />
+    </>
+  );
+}
+
+// The singer at stage centre in a pool of follow-spot light.
 function Performer() {
   const map = useMemo(glowTex, []);
-  const mat = useMemo(() => beamMat(SPOT_WHITE, 0.3, 1), []);
-  const spots = useMemo(
-    () =>
-      [[-24, ROOF.y0 - 2, 10], [24, ROOF.y0 - 2, -10]].map((from) => {
-        const a = new THREE.Vector3(...from), dir = new THREE.Vector3(0, 3.6, 0).sub(a), len = dir.length();
-        const g = new THREE.ConeGeometry(1.5, len, 16, 1, true);
-        g.translate(0, -len / 2, 0);
-        return { g, p: from, q: new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.normalize()) };
-      }),
-    []
-  );
+  const y = KIT.deck.h;
   return (
     <group name="performer">
-      <mesh position={[0, 3.35, 0]}>
+      <mesh position={[0, y + 0.95, 0]}>
         <capsuleGeometry args={[0.2, 1.25, 4, 10]} />
         <meshBasicMaterial color={[2.4, 2.2, 1.9]} toneMapped={false} />
       </mesh>
-      <mesh position={[0, 2.43, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <mesh position={[0, y + 0.03, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[9, 9]} />
         <meshBasicMaterial map={map} color={[1.1, 1.0, 0.85]} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
       </mesh>
-      {spots.map(({ g, p, q }, i) => <mesh key={i} geometry={g} material={mat} position={p} quaternion={q} />)}
     </group>
   );
 }
@@ -747,20 +950,13 @@ export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS, quality 
     };
   }, [gl, tex]);
   const truss = useMemo(trussTex, []);
-  const plate = tex[c.led];
-  const deckMat = useMemo(() => new THREE.ShaderMaterial({ uniforms: atmoUniforms(), vertexShader: DECK_VS, fragmentShader: DECK_FS }), []);
-  const edgeBulbs = useMemo(() => {
-    const out = [];
-    for (let i = 0; i <= 74; i++) {
-      const x = -27 + (i * 54) / 74;
-      out.push([x, 2.6, 18.1], [x, 2.6, -18.1]);
-    }
-    for (let i = 1; i < 48; i++) {
-      const z = -18.1 + (i * 36.2) / 48;
-      out.push([28.6, 2.6, z], [-28.6, 2.6, z]);
-    }
-    return out;
-  }, []);
+  const trussMat = useTrussMat(truss);
+  const [faceF, faceB, faceE] = tex.faces[c.led];
+  const B = KIT.box, T = KIT.towers, R = KIT.roof, D = KIT.deck;
+  const towerGeo = useMemo(() => {
+    const h = R.y0 - D.h;
+    return trussBoxes(T.xs.flatMap((x) => [-1, 1].map((s) => ({ size: [T.size, h, T.size], pos: [x, D.h + h / 2, s * T.z] }))));
+  }, [T, R, D]);
   const lightRef = useRef();
   useFrame(() => lightRef.current?.children.forEach((l) => l.color.copy(ATMO.uCue.value)));
 
@@ -772,62 +968,38 @@ export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS, quality 
         <pointLight position={[-20, 14, 26]} intensity={700} distance={90} decay={1.8} />
         <pointLight position={[20, 14, -26]} intensity={700} distance={90} decay={1.8} />
       </group>
-      <mesh position={[0, 1.2, 0]} material={deckMat}>
-        <boxGeometry args={[57, 2.4, 36]} />
-      </mesh>
-      <Bulbs points={edgeBulbs} size={0.11} />
+      <DeckAndRunway detail={quality.detail} />
       <Performer />
       {motifs.building && (
         <group>
-          {/* four black columns carry the roof; the LED volume hangs between them */}
-          {[[-20, -6], [20, -6], [-20, 6], [20, 6]].map(([x, z]) => (
-            <group key={`${x}${z}`}>
-              <mesh position={[x, 8.3, z]}>
-                <cylinderGeometry args={[0.85, 0.85, 11.8, 14]} />
-                {BLACK}
-              </mesh>
-              <Truss size={[2.4, 12, 2.4]} position={[x, 8.4, z]} map={truss} />
-            </group>
-          ))}
-          <mesh position={[0, 21, 0]}>
-            <boxGeometry args={[46, 14, 16]} />
-            <meshStandardMaterial color="#060609" />
+          {/* six black truss towers carry the roof; the LED volume hangs around them */}
+          <mesh geometry={towerGeo} material={trussMat} />
+          {/* LED volume: black carcass, four photo faces */}
+          <mesh position={[0, BOX_CY, 0]}>
+            <boxGeometry args={[B.w - 0.1, B.h, B.d - 0.1]} />
+            <meshBasicMaterial color="#030304" />
           </mesh>
-          <mesh position={[0, 29.2, 0]}>
-            <boxGeometry args={[44, 2.4, 14]} />
-            <meshStandardMaterial color="#060609" />
-          </mesh>
-          {/* long faces of the LED "building" volume: real Nest screen captures */}
-          {[8.05, -8.05].map((z) => (
-            <LedPlane key={z} tex={z > 0 ? tex.front : tex.back} w={45} h={13} position={[0, 21, z]} rotation={[0, z < 0 ? Math.PI : 0, 0]} />
+          {[1, -1].map((s) => (
+            <LedPlane key={`l${s}`} tex={s > 0 ? faceF : faceB} w={B.w} h={B.h} position={[0, BOX_CY, s * (B.d / 2 + 0.03)]} rotation={[0, s < 0 ? Math.PI : 0, 0]} />
           ))}
-          {/* short end faces show the cue plate */}
-          {[23.05, -23.05].map((x) => (
-            <LedPlane key={x} tex={plate} w={9.8} h={13} gain={1.5} position={[x, 21, 0]} rotation={[0, x > 0 ? Math.PI / 2 : -Math.PI / 2, 0]} />
+          {[1, -1].map((s) => (
+            <LedPlane key={`e${s}`} tex={faceE} w={B.d} h={B.h} gain={1.5} position={[s * (B.w / 2 + 0.03), BOX_CY, 0]} rotation={[0, s > 0 ? Math.PI / 2 : -Math.PI / 2, 0]} />
           ))}
-          {/* LED underside glow on the deck */}
-          <mesh position={[0, 13.96, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[45, 15]} />
-            <meshBasicMaterial color="#0d1018" />
-          </mesh>
-          <RoofCanopy truss={truss} detail={quality.detail} fx={quality.fx} />
+          <RoofCanopy trussMat={trussMat} truss={truss} detail={quality.detail} />
+          {quality.detail >= 1 && <PaHangs />}
         </group>
       )}
-      {motifs.towers &&
-        [[-33, 17, 1], [33, 17, 1], [-33, -17, 0], [33, -17, 0]].map(([x, z, front], i) => {
-          const ry = Math.atan2(-Math.sign(x), front ? 1 : -1);
-          return <ScreenTower key={i} position={[x, 0, z]} rotationY={ry} plate={tex.imag[i]} truss={truss} h={20} />;
-        })}
+      {motifs.towers && KIT.imag.at.map((t, i) => <ScreenTower key={i} position={[t[0], 0, t[1]]} rotationY={imagRotY(t)} plate={tex.imag[i]} trussMat={trussMat} />)}
       {/* Mascots fly ABOVE the roof canopy (y ≥ 44), outside every sight line (scripts/mascot_raycheck.mjs).
-          The stage is 四面台 with seats on all sides, so nothing may stand on the field, the
-          deck, the moat or the LED roof (the roof blocks cross-stage views of the far IMAG
-          towers). Same kit and placement in both venues. */}
+          In the Nest the real inflatables stand on plinths built over lower-tier seats
+          (nest_首场_0002..0004); here they must stay out of the audience, so they keep the
+          approved positions above the stage. Same kit and placement in both venues. */}
       {motifs.elephant && <Elephant name="mascot:elephant" plinth={false} position={[8, 44, 8]} scale={0.6} />}
       {motifs.whale && <Whale name="mascot:whale" plinth={false} position={[-12, 50, 3]} rotation={WHALE_FLYING} scale={0.75} />}
       {motifs.airship && <Airship name="mascot:airship" position={[14, 56, -4]} rotation={[0, -0.2, 0.05]} />}
       {motifs.giant && <Giant name="mascot:giant" position={[-4, 46, -12]} scale={0.5} />}
       {motifs.reeds && <Reeds cueColor={c.light} count={quality.detail >= 1 ? 2600 : 1300} />}
-      <Lasers fx={quality.fx} />
+      <Beams fx={quality.fx} />
       <Haze fx={quality.fx} />
       <Confetti active={c.confetti} count={quality.fx >= 1 ? 7000 : 3500} />
     </group>

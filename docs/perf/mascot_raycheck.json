@@ -1,5 +1,5 @@
 {
- "at": "2026-11-11T07:34:05.572Z",
+ "at": "2026-11-11T08:06:09.108Z",
  "report": {
   "wuxi": {
    "mascots": [
@@ -84,119 +84,119 @@
      }
     }
    ],
-   "rays": 2286,
+   "rays": 3278,
    "groups": {
     "2xx": {
      "sections": 32,
-     "rays": 528,
+     "rays": 784,
      "hits": 0
     },
     "4xx": {
      "sections": 78,
-     "rays": 1350,
+     "rays": 1926,
      "hits": 0
     },
     "floor": {
      "sections": 24,
-     "rays": 408,
+     "rays": 568,
      "hits": 0
     }
    },
    "floor": {
     "A6": {
-     "rays": 21,
+     "rays": 25,
      "hits": 0
     },
     "C1": {
-     "rays": 21,
+     "rays": 25,
      "hits": 0
     },
     "A5": {
-     "rays": 21,
+     "rays": 25,
      "hits": 0
     },
     "C2": {
-     "rays": 21,
+     "rays": 25,
      "hits": 0
     },
     "A4": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "C3": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "A3": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "C4": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "A2": {
-     "rays": 21,
+     "rays": 25,
      "hits": 0
     },
     "C5": {
-     "rays": 21,
+     "rays": 25,
      "hits": 0
     },
     "A1": {
-     "rays": 21,
+     "rays": 25,
      "hits": 0
     },
     "C6": {
-     "rays": 21,
+     "rays": 25,
      "hits": 0
     },
     "B1": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     },
     "B4": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     },
     "D3": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     },
     "D6": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     },
     "B2": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "B5": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "D2": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "D5": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "B3": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     },
     "B6": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     },
     "D1": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     },
     "D4": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     }
    },
@@ -288,37 +288,37 @@
      }
     }
    ],
-   "rays": 3556,
+   "rays": 5056,
    "groups": {
     "1xx": {
      "sections": 56,
-     "rays": 936,
+     "rays": 1304,
      "hits": 0
     },
     "2xx": {
      "sections": 56,
-     "rays": 936,
+     "rays": 1352,
      "hits": 0
     },
     "5xx": {
      "sections": 52,
-     "rays": 900,
+     "rays": 1284,
      "hits": 0
     },
     "6xx": {
      "sections": 24,
-     "rays": 408,
+     "rays": 584,
      "hits": 0
     },
     "floor": {
      "sections": 24,
-     "rays": 376,
+     "rays": 532,
      "hits": 0
     }
    },
    "floor": {
     "A1": {
-     "rays": 21,
+     "rays": 25,
      "hits": 0
     },
     "A2": {
@@ -326,91 +326,91 @@
      "hits": 0
     },
     "A3": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "A4": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "A5": {
-     "rays": 17,
+     "rays": 21,
      "hits": 0
     },
     "A6": {
-     "rays": 21,
+     "rays": 25,
      "hits": 0
     },
     "C6": {
-     "rays": 21,
+     "rays": 25,
      "hits": 0
     },
     "C5": {
-     "rays": 17,
-     "hits": 0
-    },
-    "C4": {
-     "rays": 13,
-     "hits": 0
-    },
-    "C3": {
-     "rays": 13,
-     "hits": 0
-    },
-    "C2": {
-     "rays": 17,
-     "hits": 0
-    },
-    "C1": {
      "rays": 21,
      "hits": 0
     },
+    "C4": {
+     "rays": 21,
+     "hits": 0
+    },
+    "C3": {
+     "rays": 21,
+     "hits": 0
+    },
+    "C2": {
+     "rays": 21,
+     "hits": 0
+    },
+    "C1": {
+     "rays": 25,
+     "hits": 0
+    },
     "D1": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "D4": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "B3": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "B6": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "D2": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "D5": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "B2": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "B5": {
-     "rays": 13,
+     "rays": 21,
      "hits": 0
     },
     "D3": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     },
     "D6": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     },
     "B1": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     },
     "B4": {
-     "rays": 17,
+     "rays": 25,
      "hits": 0
     }
    },

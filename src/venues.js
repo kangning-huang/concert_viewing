@@ -168,7 +168,9 @@ const NEST_BOWL = {
     const t = NEST_TIERS[key];
     return { key, i: [t.r0, t.r0 * NEST_SQUASH], o: [t.r1, t.r1 * NEST_SQUASH], y: [t.y0, t.y0 + t.rise] };
   }),
-  seatColors: [[0.55, 0.12, 0.15], [0.38, 0.19, 0.31], [0.14, 0.28, 0.48]], // approved GLB seat materials
+  // every Nest tier has red seats with white ones mixed in (nest_首场_0002..0004, nest_526_0005)
+  seatColors: [[0.6, 0.09, 0.11], [0.6, 0.09, 0.11], [0.58, 0.09, 0.11]],
+  whiteSeats: 0.3,
   field: { turf: [58, 39], track: null },
   roof: { type: "nest", opening: [185.3 / 2, 127.5 / 2], outer: [174, 145], y: 81, columns: 24 },
 };

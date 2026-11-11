@@ -70,18 +70,26 @@ void main(){
 }`;
 const STRUCT_FS = /* glsl */ `
 ${GLSL_ATMO}
-uniform float uRoofY;
+uniform float uRoofY; uniform float uGobo;
 varying vec3 vCol; varying vec4 vLG; varying float vDist; varying vec3 vW;
 void main(){
   vec3 amb = vec3(.030,.034,.048) + uCue*.03;
   // the roof is lit from below by the show; seen from above (map fly-in) only a little leaks through
   float L = vLG.x * ((vW.y > uRoofY && cameraPosition.y > vW.y + 4.) ? .16 : 1.);
+  if (vW.y > uRoofY && uGobo > 0.) {
+    // the show paints the membrane ceiling: strong wash plus slow gobo break-ups
+    // (nest_山顶_0005, nest_517_0002, nest_517_0011, nest_717_0001)
+    float a = atan(vW.z, vW.x), rr = length(vW.xz);
+    float g1 = pow(max(0., sin(a*7. + uT*.21)*sin(rr*.085 - uT*.33)), 2.);
+    float g2 = pow(max(0., sin(a*13. - uT*.17 + rr*.05)), 6.);
+    L = L*(1.7 + 1.4*g1) + .22*g2;
+  }
   vec3 c = vCol*(amb + uCue*L*1.5 + L*.22) + vLG.yzw;
   c = applyFog(c, vDist);
   gl_FragColor = vec4(c,1.);
   ${GLSL_OUT}
 }`;
-export const structMaterial = (roofY = 1e4) => new THREE.ShaderMaterial({ side: THREE.DoubleSide, uniforms: atmoUniforms({ uRoofY: { value: roofY } }), vertexShader: STRUCT_VS, fragmentShader: STRUCT_FS });
+export const structMaterial = (roofY = 1e4, gobo = 0) => new THREE.ShaderMaterial({ side: THREE.DoubleSide, uniforms: atmoUniforms({ uRoofY: { value: roofY }, uGobo: { value: gobo } }), vertexShader: STRUCT_VS, fragmentShader: STRUCT_FS });
 
 // ---- field (per-fragment: turf / track / apron, radial stage light, roaming light pools) ----
 const FLOOR_FS = /* glsl */ `
@@ -120,7 +128,7 @@ void main(){
 }`;
 const STAND_FS = /* glsl */ `
 ${GLSL_ATMO}
-uniform vec3 uSeatCol0, uSeatCol1, uSeatCol2; uniform vec3 uVom;
+uniform vec3 uSeatCol0, uSeatCol1, uSeatCol2; uniform vec3 uVom; uniform float uWhite;
 varying vec2 vUV; varying vec4 vSec; varying float vFacing; varying float vDist; varying vec3 vW;
 void main(){
   if (uSeat.z > 0. && distance(vW.xz, uSeat.xy) < uSeat.z) discard;
@@ -144,11 +152,13 @@ void main(){
   vec3 person = mix(cloth*(.5+.5*face), skin, head)*blob;
   // empty seat: tip-up seat with a gap to its neighbours
   float sb = step(.07,f.x)*step(f.x,.93)*step(.22,f.y)*step(f.y,.86);
-  vec3 seat = mix(vec3(.035), sc*(.75+.25*h), sb);
+  // Nest: red seats with white ones scattered through them (nest_首场_0003, nest_首场_0004)
+  vec3 scol = mix(sc, vec3(.74,.73,.71), step(1.-uWhite, fract(h3*5.3)));
+  vec3 seat = mix(vec3(.035), scol*(.75+.25*h), sb);
   vec3 det = mix(seat, person + seat*.12*(1.-blob), occ);
   det *= .5 + .5*smoothstep(0., .2, f.y);          // riser shadow between rows
   vec3 avgP = vec3(.078,.074,.078)*(.5+.5*face) + vec3(.012,.008,.006)*face;
-  vec3 avg = mix(sc*.62 + .01, avgP, occP*.97)*.86;
+  vec3 avg = mix(mix(sc, vec3(.74,.73,.71), uWhite)*.62 + .01, avgP, occP*.97)*.86;
   vec3 alb = mix(avg, det, detail);
   // radial aisles between sections
   float edge = vSec.x - abs(vUV.x);
@@ -165,11 +175,13 @@ void main(){
   c += vom*(1.-frame)*vec3(1.,.6,.3)*.10*smoothstep(.45,1.,vr) + frame*vec3(.03);
   c += aisle*detail*step(.5,fract(cell.y*.5))*(1.-smoothstep(.02,.07,abs(f.y-.1)))*step(edge,.12)*vec3(1.,.8,.5)*.6;
   // light sticks (near: one dot per fan; far: their mean glow). Sparkle comes from the point crowd.
-  float st = occ*step(.6,h3);
+  // nearly every fan holds a light stick; they read warm-white with a tint of the cue
+  // colour (nest_大对角_0003, nest_大对角_0006, nest_526_0005)
+  float st = occ*step(.3,h3);
   float tw = .35+.65*pow(.5+.5*sin(uT*(1.+h*3.)+h*40.),3.);
   float dotm = 1.-smoothstep(.03,.11,length(f-vec2(.28+.44*h,.74)));
-  vec3 stick = mix(uEdge, vec3(1.), step(.9,h)*.7);
-  c += mix(uEdge*occP*.022, stick*st*dotm*tw*2.2, detail)*(1.-aisle)*(1.-vom);
+  vec3 stick = mix(uEdge, vec3(1.,.93,.88), .45+.4*step(.7,h));
+  c += mix(mix(uEdge, vec3(1.,.93,.88), .5)*occP*.07, stick*st*dotm*tw*2.4, detail)*(1.-aisle)*(1.-vom);
   c = applyFog(c, vDist);
   gl_FragColor = vec4(c,1.);
   ${GLSL_OUT}
@@ -348,7 +360,10 @@ function buildStructure(venue, detail) {
     }
     band({ a: oa, b: ob, y: y - 3.2 }, { a: oa, b: ob, y: y - 1.2 }, STEEL, { two: true });
     // primary trusses: from each of the 24 columns, tangent to the roof opening
-    const outerAt = (th) => [ra * Math.cos(th), y - 0.4, rb * Math.sin(th)];
+    // From the seats the roof steel is hidden behind the membrane ceiling; what shows is a
+    // pale skin crossed by thin dark seams (nest_山顶_0005, nest_718_0008, nest_517_0001).
+    const SEAM = [0.16, 0.165, 0.18];
+    const outerAt = (th) => [ra * Math.cos(th), y - 1.85, rb * Math.sin(th)];
     const chord = (P, dirx, dirz) => {
       // far intersection of the ray P + t·dir with the outer ellipse
       const A = (dirx / ra) ** 2 + (dirz / rb) ** 2, Bq = 2 * ((P[0] * dirx) / ra ** 2 + (P[2] * dirz) / rb ** 2);
@@ -360,7 +375,7 @@ function buildStructure(venue, detail) {
       const ux = P[0] / (oa * 1.04), uz = P[2] / (ob * 1.04), D = Math.hypot(ux, uz), phi = Math.atan2(uz, ux), al = Math.acos(1 / D);
       for (const sgn of [-1, 1]) {
         const Tn = [oa * 1.04 * Math.cos(phi + sgn * al), 0, ob * 1.04 * Math.sin(phi + sgn * al)];
-        mb.beam(P, chord(P, Tn[0] - P[0], Tn[2] - P[2]), 2.2, 3.4, STEEL, { glow: [0.012, 0.012, 0.014] });
+        mb.beam(P, chord(P, Tn[0] - P[0], Tn[2] - P[2]), 0.55, 0.3, SEAM);
       }
     }
     // secondary members: chords that stay clear of the opening
@@ -373,7 +388,20 @@ function buildStructure(venue, detail) {
       }
       if (!clear) continue;
       made++;
-      mb.beam(P, Q, 1.4, 2.4, STEEL.map((v) => v * 0.9));
+      mb.beam(P, Q, 0.4, 0.3, SEAM);
+    }
+    // show rigging hung under the opening edge: follow-spot trusses on cables and delay PA
+    // (nest_首场_0001, nest_718_0009, nest_526_0002)
+    const RIG = [0.035, 0.036, 0.04], rigAt = (th, dy, k = 0.985) => [oa * k * Math.cos(th), y - dy, ob * k * Math.sin(th)];
+    for (let j = 0; j < 20; j++) {
+      const th = ((j + 0.5) / 20) * Math.PI * 2, w = 6.5 / Math.hypot(oa * Math.sin(th), ob * Math.cos(th));
+      mb.beam(rigAt(th - w, 7.2), rigAt(th + w, 7.2), 1.3, 1.3, RIG);
+      for (const s of [-0.8, 0.8]) mb.beam(rigAt(th + w * s, 7.2), rigAt(th + w * s, 2.4), 0.12, 0.12, RIG);
+      if (j % 2 === 0) {
+        const t2 = th + (Math.PI * 2) / 40;
+        mb.beam(rigAt(t2, 2.4, 0.93), rigAt(t2, 8, 0.93), 0.1, 0.1, RIG);
+        mb.beam(rigAt(t2, 8, 0.93), rigAt(t2, 13.5, 0.925), 1.3, 1.5, RIG);
+      }
     }
     // outer shell: 24 leaning columns each way + hoops, following the bulged profile
     const sc = (yy) => Math.max(0.74, 1 - 0.121 * ((y - yy) / 26) ** 1.45);
@@ -445,13 +473,13 @@ export function ProcBowl({ venue, bowl = "glb" }) {
   const parts = useMemo(() => {
     const spec = venue.bowl;
     const { struct, ribbons } = buildStructure(venue, detail);
-    const sm = structMaterial(spec.roof.type === "wuxi" ? 60 : 76);
+    const sm = structMaterial(spec.roof.type === "wuxi" ? 60 : 76, spec.roof.type === "nest" ? 1 : 0);
     const col = (i) => ({ value: new THREE.Color(...spec.seatColors[i]) });
     const stands = new THREE.Mesh(
       buildStands(venue, detail),
       new THREE.ShaderMaterial({
         side: THREE.DoubleSide,
-        uniforms: atmoUniforms({ uSeatCol0: col(0), uSeatCol1: col(1), uSeatCol2: col(2), uVom: { value: new THREE.Vector3(...spec.tiers.map((t) => Math.round(tierRows(t) * 0.42))) } }),
+        uniforms: atmoUniforms({ uSeatCol0: col(0), uSeatCol1: col(1), uSeatCol2: col(2), uWhite: { value: spec.whiteSeats ?? 0 }, uVom: { value: new THREE.Vector3(...spec.tiers.map((t) => Math.round(tierRows(t) * 0.42))) } }),
         vertexShader: STAND_VS,
         fragmentShader: STAND_FS,
       })

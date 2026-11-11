@@ -14,6 +14,7 @@ import path from "node:path";
 import puppeteer from "puppeteer-core";
 import * as THREE from "three";
 import { VENUES } from "../src/venues.js";
+import { KIT, BOX_CY, imagRotY } from "../src/stage/kit.js";
 
 const [dir = "dist"] = process.argv.slice(2);
 const BASE = "/concert_viewing/";
@@ -30,9 +31,9 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, r));
 const origin = `http://127.0.0.1:${server.address().port}${BASE}`;
 
-// ---- targets (stage kit constants, src/stage/JokerXueStage.jsx) ----
+// ---- targets (stage kit constants, src/stage/kit.js) ----
 const INSET = 0.1;
-const targets = [{ name: "stage-centre", p: [0, 2.4 + 1.7, 0], n: null }];
+const targets = [{ name: "stage-centre", p: [0, KIT.deck.h + 1.7, 0], n: null }];
 const face = (name, centre, right, up, hw, hh, n) => {
   for (const sx of [-1, 1])
     for (const sy of [-1, 1]) {
@@ -40,13 +41,18 @@ const face = (name, centre, right, up, hw, hh, n) => {
       targets.push({ name: `${name}${sy > 0 ? "T" : "B"}${sx > 0 ? "R" : "L"}`, p, n });
     }
 };
-face("led-front:", [0, 21, 8.05], [1, 0, 0], [0, 1, 0], 22.5, 6.5, [0, 0, 1]);
-face("led-back:", [0, 21, -8.05], [-1, 0, 0], [0, 1, 0], 22.5, 6.5, [0, 0, -1]);
-face("led-east:", [23.05, 21, 0], [0, 0, -1], [0, 1, 0], 4.9, 6.5, [1, 0, 0]);
-face("led-west:", [-23.05, 21, 0], [0, 0, 1], [0, 1, 0], 4.9, 6.5, [-1, 0, 0]);
-[[-33, 17, 1], [33, 17, 1], [-33, -17, 0], [33, -17, 0]].forEach(([x, z, front], i) => {
-  const ry = Math.atan2(-Math.sign(x), front ? 1 : -1), n = [Math.sin(ry), 0, Math.cos(ry)], r = [Math.cos(ry), 0, -Math.sin(ry)];
-  face(`imag${i + 1}:`, [x + n[0] * 0.05, 13, z + n[2] * 0.05], r, [0, 1, 0], 6, 10, n);
+const B = KIT.box, hx = B.w / 2 + 0.03, hz = B.d / 2 + 0.03;
+face("led-front:", [0, BOX_CY, hz], [1, 0, 0], [0, 1, 0], B.w / 2, B.h / 2, [0, 0, 1]);
+face("led-back:", [0, BOX_CY, -hz], [-1, 0, 0], [0, 1, 0], B.w / 2, B.h / 2, [0, 0, -1]);
+face("led-east:", [hx, BOX_CY, 0], [0, 0, -1], [0, 1, 0], B.d / 2, B.h / 2, [1, 0, 0]);
+face("led-west:", [-hx, BOX_CY, 0], [0, 0, 1], [0, 1, 0], B.d / 2, B.h / 2, [-1, 0, 0]);
+// IMAG towers carry a screen on both faces
+KIT.imag.at.forEach((t, i) => {
+  const ry = imagRotY(t), off = KIT.imag.depth / 2 + 0.12, cy = KIT.imag.base + KIT.imag.h / 2;
+  for (const s of [1, -1]) {
+    const n = [Math.sin(ry) * s, 0, Math.cos(ry) * s], r = [Math.cos(ry) * s, 0, -Math.sin(ry) * s];
+    face(`imag${i + 1}${s > 0 ? "a" : "b"}:`, [t[0] + n[0] * off, cy, t[1] + n[2] * off], r, [0, 1, 0], KIT.imag.w / 2, KIT.imag.h / 2, n);
+  }
 });
 
 // ---- fly-in paths (copied from src/scene/CameraRig.jsx; keep in sync) ----
