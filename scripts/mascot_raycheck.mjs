@@ -17,6 +17,8 @@ import { VENUES } from "../src/venues.js";
 import { KIT, BOX_CY, imagRotY } from "../src/stage/kit.js";
 
 const [dir = "dist"] = process.argv.slice(2);
+// every mascot must be present and clear of every sight line
+const MASCOTS = ["elephant", "whale", "airship", "giant", "lion", "eagle"];
 const BASE = "/concert_viewing/";
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".jpg": "image/jpeg", ".webp": "image/webp", ".png": "image/png", ".glb": "model/gltf-binary", ".json": "application/json" };
 const server = http.createServer((req, res) => {
@@ -99,7 +101,7 @@ for (const vid of ["wuxi", "nest"]) {
   const page = await browser.newPage();
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
   await page.goto(`${origin}?venue=${vid}&quality=high&raycheck`, { waitUntil: "load", timeout: 60000 });
-  await page.waitForFunction(() => window.__r3f?.scene.getObjectByName("mascot:giant"), { timeout: 20000 });
+  await page.waitForFunction(() => window.__r3f?.scene.getObjectByName("mascot:giant") && window.__r3f.scene.getObjectByName("mascot:eagle"), { timeout: 20000 });
 
   const seats = venue.sections.map((s) => ({ id: s.id, p: [s.seat.x, s.seat.y, s.seat.z] }));
   const res = await page.evaluate(
@@ -191,7 +193,7 @@ for (const vid of ["wuxi", "nest"]) {
     hits: res.hits.slice(0, 40),
     footprintOverlaps: footprint,
     flyPathHits: [...flyHits].slice(0, 40),
-    ok: res.mascots.length === 4 && res.hits.length === 0 && footprint.length === 0 && flyHits.size === 0,
+    ok: MASCOTS.every((m) => res.mascots.some((r) => r.name === `mascot:${m}`)) && res.hits.length === 0 && footprint.length === 0 && flyHits.size === 0,
   };
   if (!report[vid].ok) failed = true;
   await page.close();

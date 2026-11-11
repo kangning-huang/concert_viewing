@@ -8,8 +8,9 @@ import ledTitleUrl from "./led_title.jpg";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { ATMO, atmoUniforms, GLSL_ATMO, GLSL_OUT } from "../scene/atmo.js";
 import { KIT, BOX_CY, imagRotY } from "./kit.js";
+import { Lion, Eagle, Elephant, Skin } from "./mascots.jsx";
 
-export const DEFAULT_MOTIFS = { towers: true, building: true, whale: true, elephant: true, airship: true, giant: true, reeds: true };
+export const DEFAULT_MOTIFS = { towers: true, building: true, whale: true, elephant: true, lion: true, eagle: true, airship: true, giant: true, reeds: true };
 
 // Colours per cue are sampled from the photos: warm-white blinders and cool beams before the
 // show (nest_526_0001, nest_226_0001), rainbow rim on the confetti song (nest_226_0005,
@@ -220,46 +221,9 @@ const Tube = ({ pts, radius, color = GREY, rough = 0.6, metal = 0.05 }) => {
     </mesh>
   );
 };
-const Plinth = ({ w = 13, d = 9, h = 3.2 }) => (
-  <mesh position={[0, h / 2, 0]}>
-    <boxGeometry args={[w, h, d]} />
-    <meshStandardMaterial color="#0c0c10" roughness={0.9} />
-  </mesh>
-);
-
-// Dark grey inflatable elephant: big ears, trunk curled up, pale tusks (nest_首场_0004).
-function Elephant({ plinth = true, ...props }) {
-  const trunk = useMemo(() => [[6.4, 6.6, 0], [8.1, 5.2, 0], [9.7, 5.5, 0], [10.4, 7.4, 0], [9.9, 9.1, 0], [8.8, 9.6, 0]], []);
-  const tail = useMemo(() => [[-5.3, 6.6, 0], [-6.3, 5, 0], [-6.6, 2.6, 0]], []);
-  const tuskL = useMemo(() => [[6, 4.9, 0.9], [7.6, 4.2, 1.1], [9.1, 5, 1.1]], []);
-  const tuskR = useMemo(() => [[6, 4.9, -0.9], [7.6, 4.2, -1.1], [9.1, 5, -1.1]], []);
-  return (
-    <group {...props}>
-      {plinth && <Plinth w={16} d={9} />}
-      <group position={[-1.5, plinth ? 3.2 : 0, 0]}>
-        <Blob p={[0, 5.7, 0]} s={[5.5, 3.5, 3.2]} />
-        <Blob p={[5, 6.8, 0]} s={[2.1, 2.2, 1.9]} />
-        <Blob p={[3.6, 6.4, 2.5]} s={[2, 2.9, 0.3]} r={[0.3, 0.55, 0.15]} color="#5f6165" />
-        <Blob p={[3.6, 6.4, -2.5]} s={[2, 2.9, 0.3]} r={[-0.3, -0.55, 0.15]} color="#5f6165" />
-        <Blob p={[-1.8, 6.6, 0]} s={[3.6, 3.1, 3]} />
-        {[[3.3, 1.5], [3.3, -1.5], [-3.3, 1.5], [-3.3, -1.5]].map(([x, z]) => (
-          <mesh key={`${x}${z}`} position={[x, 1.8, z]}>
-            <cylinderGeometry args={[1.05, 1.2, 3.8, 18]} />
-            <meshStandardMaterial color={GREY} roughness={0.65} />
-          </mesh>
-        ))}
-        <Tube pts={trunk} radius={0.52} />
-        <Tube pts={tail} radius={0.16} />
-        <Tube pts={tuskL} radius={0.2} color="#efe6d6" />
-        <Tube pts={tuskR} radius={0.2} color="#efe6d6" />
-      </group>
-    </group>
-  );
-}
-
 // Pale grey humpback with a white pleated throat, long flippers, flukes
 // (nest_皇帝位_0006, nest_731_0005, nest_317_0004).
-function Whale({ plinth = true, ...props }) {
+function Whale(props) {
   const geo = useMemo(() => {
     const prof = [[0.2, 0], [2.3, 0.5], [3.7, 2.4], [4.5, 5.5], [4.6, 9], [4.1, 12.5], [3, 15.5], [1.5, 17.7], [0.1, 18.6]];
     const pts = new THREE.SplineCurve(prof.map(([x, y]) => new THREE.Vector2(x, y))).getPoints(48);
@@ -279,10 +243,9 @@ function Whale({ plinth = true, ...props }) {
   }, []);
   return (
     <group {...props}>
-      {plinth && <Plinth w={13} d={12} />}
-      <group position={[0, plinth ? 3.2 : 0, 0]} rotation={[-0.12, 0, 0]}>
+      <group rotation={[-0.12, 0, 0]}>
         <mesh geometry={geo}>
-          <meshStandardMaterial vertexColors roughness={0.55} />
+          <Skin rough={0.5} side={THREE.FrontSide} />
         </mesh>
         <Blob p={[6.2, 9.6, 1.2]} s={[4.6, 1, 0.35]} r={[0, -0.2, -0.55]} color="#dfe3e2" />
         <Blob p={[-6.2, 9.6, 1.2]} s={[4.6, 1, 0.35]} r={[0, 0.2, 0.55]} color="#dfe3e2" />
@@ -1104,8 +1067,10 @@ export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS, quality 
           In the Nest the real inflatables stand on plinths built over lower-tier seats
           (nest_首场_0002..0004); here they must stay out of the audience, so they keep the
           approved positions above the stage. Same kit and placement in both venues. */}
-      {motifs.elephant && <Elephant name="mascot:elephant" plinth={false} position={[8, 44, 8]} scale={0.6} />}
-      {motifs.whale && <Whale name="mascot:whale" plinth={false} position={[-12, 50, 3]} rotation={WHALE_FLYING} scale={0.75} />}
+      {motifs.elephant && <Elephant name="mascot:elephant" position={[8, 44, 8]} scale={0.6} />}
+      {motifs.lion && <Lion name="mascot:lion" position={[-19, 44, 10]} rotation={[0, 0.35, 0]} scale={0.6} />}
+      {motifs.eagle && <Eagle name="mascot:eagle" position={[20, 45, -10]} rotation={[0, Math.PI - 0.4, 0]} scale={0.6} />}
+      {motifs.whale && <Whale name="mascot:whale" position={[-12, 50, 3]} rotation={WHALE_FLYING} scale={0.75} />}
       {motifs.airship && <Airship name="mascot:airship" position={[14, 56, -4]} rotation={[0, -0.2, 0.05]} />}
       {motifs.giant && <Giant name="mascot:giant" position={[-4, 46, -12]} scale={0.5} />}
       {motifs.reeds && <Reeds cueColor={c.light} count={quality.detail >= 1 ? 2600 : 1300} />}
