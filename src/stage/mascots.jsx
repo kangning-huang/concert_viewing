@@ -10,7 +10,12 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 
 const C = (hex) => new THREE.Color(hex);
-const mixC = (a, b, t) => a.clone().lerp(b, Math.min(1, Math.max(0, t)));
+// Paint functions run once per vertex (tens of thousands of times at start-up). Results are
+// read straight into the colour buffer, so they come from a small ring of scratch colours
+// instead of fresh objects: no start-up garbage for the collector to stop the first fly-in on.
+const RING = Array.from({ length: 32 }, () => new THREE.Color());
+let ringAt = 0;
+const mixC = (a, b, t) => RING[(ringAt = (ringAt + 1) & 31)].copy(a).lerp(b, Math.min(1, Math.max(0, t)));
 const hash = (x, y = 0) => {
   const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
   return s - Math.floor(s);
@@ -123,8 +128,7 @@ function rock(size, centre, pale, dark, round = 0) {
 
 const useAnimal = (build) =>
   useMemo(() => {
-    const parts = build().map((g) => (g.index ? g.toNonIndexed() : g));
-    const g = mergeGeometries(parts);
+    const g = mergeGeometries(build()); // every part is indexed: shared vertices stay shared
     g.computeBoundingSphere();
     return g;
   }, [build]);
@@ -134,10 +138,18 @@ const useAnimal = (build) =>
 const glowPatch = (glow) => (shader) => {
   shader.fragmentShader = shader.fragmentShader.replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n  totalEmissiveRadiance += diffuseColor.rgb * ${glow.toFixed(3)};`);
 };
-export const Skin = ({ rough = 0.56, glow = 0.3, ...props }) => {
-  const patch = useMemo(() => glowPatch(glow), [glow]);
-  return <meshStandardMaterial vertexColors roughness={rough} metalness={0.02} side={THREE.DoubleSide} onBeforeCompile={patch} customProgramCacheKey={() => `skin${glow}`} {...props} />;
-};
+// One material object per (roughness, glow, side): built once, never touched by React again,
+// so a re-render can never flag it for a program lookup.
+const skins = {};
+export function skin(rough = 0.56, glow = 0.3, side = THREE.DoubleSide) {
+  const key = `${rough}/${glow}/${side}`;
+  if (!skins[key]) {
+    const m = (skins[key] = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: rough, metalness: 0.02, side }));
+    m.onBeforeCompile = glowPatch(glow);
+    m.customProgramCacheKey = () => `skin${glow}`;
+  }
+  return skins[key];
+}
 const Plinth = ({ w = 13, d = 9, h = 3.2 }) => (
   <mesh position={[0, h / 2, 0]}>
     <boxGeometry args={[w, h, d]} />
@@ -195,9 +207,7 @@ export function Lion({ plinth = false, ...props }) {
   return (
     <group {...props}>
       {plinth && <Plinth w={15} d={9} />}
-      <mesh geometry={geo} position={[0, (plinth ? 3.2 : 0) + 2.65, 0]}>
-        <Skin />
-      </mesh>
+      <mesh geometry={geo} material={skin()} position={[0, (plinth ? 3.2 : 0) + 2.65, 0]} />
     </group>
   );
 }
@@ -257,9 +267,7 @@ export function Eagle({ plinth = false, ...props }) {
   return (
     <group {...props}>
       {plinth && <Plinth w={12} d={10} />}
-      <mesh geometry={geo} position={[0, (plinth ? 3.2 : 0) + 2.0, 0]}>
-        <Skin rough={0.62} />
-      </mesh>
+      <mesh geometry={geo} material={skin(0.62)} position={[0, (plinth ? 3.2 : 0) + 2.0, 0]} />
     </group>
   );
 }
@@ -295,9 +303,7 @@ export function Elephant({ plinth = false, ...props }) {
   return (
     <group {...props}>
       {plinth && <Plinth w={16} d={9} />}
-      <mesh geometry={geo} position={[-1.5, plinth ? 3.2 : 0, 0]}>
-        <Skin rough={0.66} />
-      </mesh>
+      <mesh geometry={geo} material={skin(0.66)} position={[-1.5, plinth ? 3.2 : 0, 0]} />
     </group>
   );
 }

@@ -8,7 +8,7 @@ import ledTitleUrl from "./led_title.jpg";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { ATMO, atmoUniforms, GLSL_ATMO, GLSL_OUT } from "../scene/atmo.js";
 import { KIT, BOX_CY, imagRotY } from "./kit.js";
-import { Lion, Eagle, Elephant, Skin } from "./mascots.jsx";
+import { Lion, Eagle, Elephant, skin } from "./mascots.jsx";
 
 export const DEFAULT_MOTIFS = { towers: true, building: true, whale: true, elephant: true, lion: true, eagle: true, airship: true, giant: true, reeds: true };
 
@@ -244,9 +244,7 @@ function Whale(props) {
   return (
     <group {...props}>
       <group rotation={[-0.12, 0, 0]}>
-        <mesh geometry={geo}>
-          <Skin rough={0.5} side={THREE.FrontSide} />
-        </mesh>
+        <mesh geometry={geo} material={skin(0.5, 0.3, THREE.FrontSide)} />
         <Blob p={[6.2, 9.6, 1.2]} s={[4.6, 1, 0.35]} r={[0, -0.2, -0.55]} color="#dfe3e2" />
         <Blob p={[-6.2, 9.6, 1.2]} s={[4.6, 1, 0.35]} r={[0, 0.2, 0.55]} color="#dfe3e2" />
         <Blob p={[0, 9, -4.4]} s={[0.25, 1.3, 0.8]} color="#7f8a90" />
@@ -675,6 +673,9 @@ function useLedMaterial(tex, w, h, gain = 1.7, bezel = 1, open = 0, band = FULL_
       new THREE.ShaderMaterial({
         transparent: open > 0,
         side: open > 0 ? THREE.DoubleSide : THREE.FrontSide,
+        // one pass: the shader handles both faces itself. (three's two-pass mode flags the
+        // material for update twice per frame, which costs a program lookup every time.)
+        forceSinglePass: true,
         uniforms: atmoUniforms({ uMap: { value: null }, uRep: { value: new THREE.Vector2(1, 1) }, uOff: { value: new THREE.Vector2() }, uBand: { value: band }, uSize: { value: new THREE.Vector2(w, h) }, uGain: { value: gain }, uBezel: { value: bezel }, uFade: { value: 0 }, uOpen: { value: open } }),
         vertexShader: LED_VS,
         fragmentShader: LED_FS,
@@ -1069,7 +1070,7 @@ export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS, quality 
           approved positions above the stage. Same kit and placement in both venues. */}
       {motifs.elephant && <Elephant name="mascot:elephant" position={[8, 44, 8]} scale={0.6} />}
       {motifs.lion && <Lion name="mascot:lion" position={[-19, 44, 10]} rotation={[0, 0.35, 0]} scale={0.6} />}
-      {motifs.eagle && <Eagle name="mascot:eagle" position={[20, 45, -10]} rotation={[0, Math.PI - 0.4, 0]} scale={0.6} />}
+      {motifs.eagle && <Eagle name="mascot:eagle" position={[22, 45, -12]} rotation={[0, Math.PI - 0.4, 0]} scale={0.6} />}
       {motifs.whale && <Whale name="mascot:whale" position={[-12, 50, 3]} rotation={WHALE_FLYING} scale={0.75} />}
       {motifs.airship && <Airship name="mascot:airship" position={[14, 56, -4]} rotation={[0, -0.2, 0.05]} />}
       {motifs.giant && <Giant name="mascot:giant" position={[-4, 46, -12]} scale={0.5} />}

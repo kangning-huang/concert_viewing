@@ -20,12 +20,16 @@ function Barriers({ bars }) {
   ));
 }
 
+// Always mounted (shrunk to nothing while hidden) so its shader program is compiled during
+// the warm-up frames behind the map. Mounting it on the first fly-in frame made three link a
+// new program right then, which stalled that frame for up to ~100 ms.
+const MARKER_COLOR = new THREE.Color("#6fffd2").multiplyScalar(2.5);
 function SeatMarker({ section, visible }) {
-  if (!section || !visible) return null;
+  const on = !!section && visible, s = section?.seat;
   return (
-    <mesh position={[section.seat.x, section.seat.y - 1, section.seat.z]} rotation={[-Math.PI / 2, 0, 0]}>
+    <mesh position={s ? [s.x, s.y - 1, s.z] : [0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]} scale={on ? 1 : 1e-4}>
       <ringGeometry args={[2.2, 3.4, 40]} />
-      <meshBasicMaterial color={new THREE.Color("#6fffd2").multiplyScalar(2.5)} toneMapped={false} transparent opacity={0.9} side={THREE.DoubleSide} />
+      <meshBasicMaterial color={MARKER_COLOR} toneMapped={false} transparent opacity={0.9} side={THREE.DoubleSide} />
     </mesh>
   );
 }

@@ -13,7 +13,8 @@ const [dir, label = "run"] = process.argv.slice(2);
 const shotIdx = process.argv.indexOf("--shots");
 const shotPrefix = shotIdx > 0 ? process.argv[shotIdx + 1] : null;
 const BASE = "/concert_viewing/";
-// optional: --quality <ultra|high|medium|low> (default high), --cpu <n> (CPU throttle ×n, mid-phone proxy)
+// optional: --quality <ultra|high|medium|low> (default high), --cpu <n> (CPU throttle ×n, mid-phone proxy),
+// --only <case key>, --flyonly (stop after the fly-in: for repeating one case), --query "&k=v", --trace-gl
 const argOf = (name, def) => (process.argv.indexOf(name) > 0 ? process.argv[process.argv.indexOf(name) + 1] : def);
 const QUALITY = argOf("--quality", "high"), CPU = Number(argOf("--cpu", 1));
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".jpg": "image/jpeg", ".webp": "image/webp", ".png": "image/png", ".glb": "model/gltf-binary", ".json": "application/json" };
@@ -153,7 +154,7 @@ for (const c of CASES.filter((c) => !only || c.key.includes(only))) {
   const r = { case: c.key, ok: true, notes: [] };
   try {
     if (CPU > 1) await page.emulateCPUThrottling(CPU);
-    await page.goto(`${origin}?venue=${c.venue}&quality=${QUALITY}`, { waitUntil: "load", timeout: 60000 });
+    await page.goto(`${origin}?venue=${c.venue}&quality=${QUALITY}${argOf("--query", "")}`, { waitUntil: "load", timeout: 60000 });
     await page.waitForSelector(".seat-svg g.sec", { timeout: 20000 });
     await new Promise((s) => setTimeout(s, 4000));
     if (shotPrefix && c.nth === 0 && !results.some((x) => x.case.startsWith(c.venue))) await page.screenshot({ path: `${shotPrefix}_map_${c.venue}.png` });
@@ -181,7 +182,11 @@ for (const c of CASES.filter((c) => !only || c.key.includes(only))) {
     if (selOn !== 1) throw new Error(`expected 1 highlighted section, got ${selOn}`);
     await new Promise((s) => setTimeout(s, 600)); // human pace: c941445 eats touchends <300ms apart (zoom guard)
     await page.tap(".go");
-    r.flyin = stats(await recordFrames(page, 1900));
+    const flyRaw = await recordFrames(page, 1900);
+    r.flyin = stats(flyRaw);
+    r.flyin.worstAtMs = Math.round(flyRaw.slice(0, flyRaw.indexOf(Math.max(...flyRaw))).reduce((a, b) => a + b, 0)); // when the worst frame fell
+    if (process.argv.includes("--flyonly")) { results.push(r); await page.close(); continue; } // hitch hunting: stop after the fly-in
+    if (process.argv.includes("--trace-gl")) r.glFly = await page.evaluate((t) => ({ now: +performance.now().toFixed(0), calls: window.__gl.filter((g) => g.t > t) }), idleT0);
     await page.waitForSelector(".sheet", { timeout: 6000 });
     await new Promise((s) => setTimeout(s, 600));
     const sheetTitle = await page.$eval(".sheet h2", (e) => e.textContent);
