@@ -2,19 +2,19 @@
  "label": "sil_final_medium_cpu4",
  "quality": "medium",
  "cpuThrottle": 4,
- "at": "2026-11-11T11:57:39.060Z",
+ "at": "2026-11-11T12:07:15.847Z",
  "results": [
   {
    "case": "wuxi_floor_C3",
    "ok": true,
    "notes": [],
    "mapIdle": {
-    "n": 470,
-    "median": 3.1,
-    "p95": 4.6,
-    "max": 5.4,
+    "n": 455,
+    "median": 3.2,
+    "p95": 4.5,
+    "max": 6.3,
     "jank33": 0,
-    "mean": 3.21
+    "mean": 3.31
    },
    "tapTarget": {
     "w": 17.4,
@@ -22,32 +22,32 @@
    },
    "picked": "C3区",
    "flyin": {
-    "n": 495,
-    "median": 3.7,
-    "p95": 5.2,
-    "max": 22.5,
+    "n": 596,
+    "median": 3.1,
+    "p95": 4.3,
+    "max": 20.5,
     "jank33": 0,
-    "mean": 3.85,
-    "worstAtMs": 1783
+    "mean": 3.19,
+    "worstAtMs": 1769
    },
    "controlDelta": 3.18,
    "look": {
-    "n": 470,
-    "median": 2.9,
-    "p95": 4.5,
-    "max": 6.2,
+    "n": 367,
+    "median": 3.7,
+    "p95": 5.2,
+    "max": 9.5,
     "jank33": 0,
-    "mean": 2.99
+    "mean": 3.85
    },
-   "lookT0": 12049.599999904633,
-   "lookDelta": 42.24,
+   "lookT0": 12150.100000023842,
+   "lookDelta": 42.33,
    "cues": {
-    "n": 922,
+    "n": 847,
     "median": 3.1,
-    "p95": 4.6,
-    "max": 12.4,
+    "p95": 5,
+    "max": 18.3,
     "jank33": 0,
-    "mean": 3.06
+    "mean": 3.33
    },
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
   },
@@ -56,12 +56,12 @@
    "ok": true,
    "notes": [],
    "mapIdle": {
-    "n": 461,
-    "median": 3.2,
-    "p95": 4.5,
-    "max": 5.7,
+    "n": 507,
+    "median": 3.1,
+    "p95": 4.4,
+    "max": 6.7,
     "jank33": 0,
-    "mean": 3.27
+    "mean": 2.98
    },
    "tapTarget": {
     "w": 28.9,
@@ -69,32 +69,32 @@
    },
    "picked": "409区",
    "flyin": {
-    "n": 483,
-    "median": 3.8,
-    "p95": 5,
-    "max": 21.2,
+    "n": 509,
+    "median": 3.5,
+    "p95": 5.5,
+    "max": 21.1,
     "jank33": 0,
-    "mean": 3.95,
-    "worstAtMs": 1782
+    "mean": 3.75,
+    "worstAtMs": 1786
    },
-   "controlDelta": 5.02,
+   "controlDelta": 4.92,
    "look": {
-    "n": 520,
-    "median": 2.7,
-    "p95": 4.4,
-    "max": 12.8,
+    "n": 396,
+    "median": 3.5,
+    "p95": 5.1,
+    "max": 13.4,
     "jank33": 0,
-    "mean": 2.72
+    "mean": 3.57
    },
-   "lookT0": 11837.899999976158,
-   "lookDelta": 37.14,
+   "lookT0": 11717.699999928474,
+   "lookDelta": 37.28,
    "cues": {
-    "n": 995,
-    "median": 2.7,
-    "p95": 4.1,
-    "max": 15.7,
+    "n": 964,
+    "median": 2.8,
+    "p95": 4.6,
+    "max": 11.2,
     "jank33": 0,
-    "mean": 2.84
+    "mean": 2.93
    },
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
   },
@@ -103,12 +103,12 @@
    "ok": true,
    "notes": [],
    "mapIdle": {
-    "n": 454,
-    "median": 3.4,
-    "p95": 4.6,
-    "max": 6.3,
+    "n": 479,
+    "median": 3.1,
+    "p95": 4.2,
+    "max": 5.3,
     "jank33": 0,
-    "mean": 3.31
+    "mean": 3.15
    },
    "tapTarget": {
     "w": 26.3,
@@ -116,32 +116,32 @@
    },
    "picked": "224区",
    "flyin": {
-    "n": 478,
-    "median": 3.9,
-    "p95": 5.1,
-    "max": 21,
+    "n": 561,
+    "median": 3.3,
+    "p95": 4.6,
+    "max": 21.7,
     "jank33": 0,
-    "mean": 3.99,
-    "worstAtMs": 1769
+    "mean": 3.4,
+    "worstAtMs": 1780
    },
-   "controlDelta": 5.49,
+   "controlDelta": 5.72,
    "look": {
-    "n": 487,
-    "median": 2.8,
-    "p95": 4.5,
-    "max": 15.4,
+    "n": 396,
+    "median": 3.5,
+    "p95": 4.8,
+    "max": 7.9,
     "jank33": 0,
-    "mean": 2.92
+    "mean": 3.54
    },
-   "lookT0": 11994.5,
-   "lookDelta": 31.24,
+   "lookT0": 11809.5,
+   "lookDelta": 31.29,
    "cues": {
-    "n": 1055,
-    "median": 2.6,
-    "p95": 4.2,
-    "max": 10.5,
+    "n": 934,
+    "median": 2.9,
+    "p95": 4.5,
+    "max": 12.4,
     "jank33": 0,
-    "mean": 2.67
+    "mean": 3.02
    },
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
   },
@@ -150,12 +150,12 @@
    "ok": true,
    "notes": [],
    "mapIdle": {
-    "n": 470,
-    "median": 3.1,
-    "p95": 4.4,
-    "max": 6,
+    "n": 466,
+    "median": 3.4,
+    "p95": 5,
+    "max": 7.3,
     "jank33": 0,
-    "mean": 3.2
+    "mean": 3.24
    },
    "tapTarget": {
     "w": 27.6,
@@ -163,32 +163,32 @@
    },
    "picked": "409区",
    "flyin": {
-    "n": 472,
-    "median": 3.9,
-    "p95": 5.2,
-    "max": 21.1,
+    "n": 570,
+    "median": 3.2,
+    "p95": 4.7,
+    "max": 19.8,
     "jank33": 0,
-    "mean": 4.04,
-    "worstAtMs": 1776
+    "mean": 3.34,
+    "worstAtMs": 1781
    },
-   "controlDelta": 4.92,
+   "controlDelta": 4.76,
    "look": {
-    "n": 411,
-    "median": 3.8,
-    "p95": 5.5,
-    "max": 14.3,
+    "n": 492,
+    "median": 2.8,
+    "p95": 4.1,
+    "max": 11.7,
     "jank33": 0,
-    "mean": 3.45
+    "mean": 2.87
    },
-   "lookT0": 11812.399999976158,
-   "lookDelta": 29.63,
+   "lookT0": 11632.299999952316,
+   "lookDelta": 29.79,
    "cues": {
-    "n": 903,
-    "median": 3,
-    "p95": 4.4,
-    "max": 11.3,
+    "n": 851,
+    "median": 3.2,
+    "p95": 4.8,
+    "max": 13.7,
     "jank33": 0,
-    "mean": 3.12
+    "mean": 3.32
    },
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
   },
@@ -197,12 +197,12 @@
    "ok": true,
    "notes": [],
    "mapIdle": {
-    "n": 449,
-    "median": 3.2,
-    "p95": 4.8,
-    "max": 8.5,
+    "n": 393,
+    "median": 3.8,
+    "p95": 5,
+    "max": 6.7,
     "jank33": 0,
-    "mean": 3.37
+    "mean": 3.83
    },
    "tapTarget": {
     "w": 18.1,
@@ -210,32 +210,32 @@
    },
    "picked": "D3区",
    "flyin": {
-    "n": 524,
-    "median": 3.5,
-    "p95": 4.8,
-    "max": 21.2,
-    "jank33": 0,
-    "mean": 3.63,
-    "worstAtMs": 1781
-   },
-   "controlDelta": 4.5,
-   "look": {
-    "n": 405,
-    "median": 3.4,
-    "p95": 4.8,
-    "max": 6.3,
-    "jank33": 0,
-    "mean": 3.47
-   },
-   "lookT0": 12099.5,
-   "lookDelta": 37.49,
-   "cues": {
-    "n": 961,
-    "median": 2.9,
+    "n": 581,
+    "median": 3.2,
     "p95": 4.4,
-    "max": 11.3,
+    "max": 22.6,
     "jank33": 0,
-    "mean": 2.93
+    "mean": 3.28,
+    "worstAtMs": 1780
+   },
+   "controlDelta": 4.41,
+   "look": {
+    "n": 467,
+    "median": 2.9,
+    "p95": 4.3,
+    "max": 12.8,
+    "jank33": 0,
+    "mean": 3.03
+   },
+   "lookT0": 11909.699999928474,
+   "lookDelta": 37.69,
+   "cues": {
+    "n": 761,
+    "median": 3.6,
+    "p95": 4.9,
+    "max": 11.6,
+    "jank33": 0,
+    "mean": 3.71
    },
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
   },
@@ -244,12 +244,12 @@
    "ok": true,
    "notes": [],
    "mapIdle": {
-    "n": 487,
-    "median": 3,
-    "p95": 4.1,
-    "max": 5.5,
+    "n": 401,
+    "median": 3.7,
+    "p95": 4.8,
+    "max": 5.6,
     "jank33": 0,
-    "mean": 3.09
+    "mean": 3.75
    },
    "tapTarget": {
     "w": 9.5,
@@ -257,32 +257,32 @@
    },
    "picked": "A1区",
    "flyin": {
-    "n": 594,
-    "median": 3.1,
-    "p95": 4.5,
-    "max": 21.4,
-    "jank33": 0,
-    "mean": 3.21,
-    "worstAtMs": 1785
-   },
-   "controlDelta": 5.67,
-   "look": {
-    "n": 389,
-    "median": 3.5,
-    "p95": 5,
-    "max": 7,
-    "jank33": 0,
-    "mean": 3.62
-   },
-   "lookT0": 12120.299999952316,
-   "lookDelta": 29.37,
-   "cues": {
-    "n": 960,
+    "n": 648,
     "median": 2.8,
-    "p95": 4.2,
-    "max": 15.6,
+    "p95": 4.3,
+    "max": 21.7,
     "jank33": 0,
-    "mean": 2.93
+    "mean": 2.94,
+    "worstAtMs": 1769
+   },
+   "controlDelta": 5.44,
+   "look": {
+    "n": 457,
+    "median": 3,
+    "p95": 4.5,
+    "max": 5.9,
+    "jank33": 0,
+    "mean": 3.08
+   },
+   "lookT0": 11932.700000047684,
+   "lookDelta": 29.49,
+   "cues": {
+    "n": 811,
+    "median": 3.4,
+    "p95": 4.8,
+    "max": 15.1,
+    "jank33": 0,
+    "mean": 3.48
    },
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
   },
@@ -291,12 +291,12 @@
    "ok": true,
    "notes": [],
    "mapIdle": {
-    "n": 498,
-    "median": 3,
-    "p95": 3.9,
-    "max": 4.8,
+    "n": 407,
+    "median": 3.7,
+    "p95": 4.7,
+    "max": 5.9,
     "jank33": 0,
-    "mean": 3.02
+    "mean": 3.71
    },
    "tapTarget": {
     "w": 9.2,
@@ -304,32 +304,32 @@
    },
    "picked": "D3区",
    "flyin": {
-    "n": 551,
-    "median": 3.3,
-    "p95": 4.8,
-    "max": 22.6,
-    "jank33": 0,
-    "mean": 3.46,
-    "worstAtMs": 1770
-   },
-   "controlDelta": 2.36,
-   "look": {
-    "n": 395,
-    "median": 3.5,
-    "p95": 4.6,
-    "max": 7.2,
-    "jank33": 0,
-    "mean": 3.56
-   },
-   "lookT0": 12126.399999976158,
-   "lookDelta": 26.46,
-   "cues": {
-    "n": 1017,
-    "median": 2.7,
+    "n": 621,
+    "median": 3,
     "p95": 4.1,
-    "max": 11.1,
+    "max": 20.6,
     "jank33": 0,
-    "mean": 2.77
+    "mean": 3.07,
+    "worstAtMs": 1765
+   },
+   "controlDelta": 2.39,
+   "look": {
+    "n": 499,
+    "median": 2.9,
+    "p95": 4.5,
+    "max": 7.5,
+    "jank33": 0,
+    "mean": 2.83
+   },
+   "lookT0": 12001.399999976158,
+   "lookDelta": 26.41,
+   "cues": {
+    "n": 841,
+    "median": 3.3,
+    "p95": 4.6,
+    "max": 12.4,
+    "jank33": 0,
+    "mean": 3.35
    },
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
   },
@@ -338,12 +338,12 @@
    "ok": true,
    "notes": [],
    "mapIdle": {
-    "n": 505,
-    "median": 2.9,
-    "p95": 3.8,
-    "max": 4.5,
+    "n": 389,
+    "median": 3.8,
+    "p95": 4.8,
+    "max": 5.9,
     "jank33": 0,
-    "mean": 2.98
+    "mean": 3.88
    },
    "tapTarget": {
     "w": 22.4,
@@ -351,32 +351,32 @@
    },
    "picked": "636区",
    "flyin": {
-    "n": 582,
-    "median": 3.5,
-    "p95": 5,
-    "max": 21.8,
+    "n": 615,
+    "median": 3.1,
+    "p95": 4.1,
+    "max": 20.1,
     "jank33": 0,
-    "mean": 3.28,
-    "worstAtMs": 1792
+    "mean": 3.1,
+    "worstAtMs": 1782
    },
-   "controlDelta": 3.25,
+   "controlDelta": 3.22,
    "look": {
-    "n": 407,
-    "median": 3.4,
-    "p95": 4.9,
-    "max": 6.3,
+    "n": 508,
+    "median": 2.6,
+    "p95": 4.4,
+    "max": 5.6,
     "jank33": 0,
-    "mean": 3.45
+    "mean": 2.77
    },
-   "lookT0": 11807.799999952316,
-   "lookDelta": 38.27,
+   "lookT0": 11726.799999952316,
+   "lookDelta": 38.28,
    "cues": {
-    "n": 1096,
-    "median": 2.5,
-    "p95": 3.9,
-    "max": 10.8,
+    "n": 866,
+    "median": 3.2,
+    "p95": 4.4,
+    "max": 11.3,
     "jank33": 0,
-    "mean": 2.57
+    "mean": 3.26
    },
    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
   }

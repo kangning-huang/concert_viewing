@@ -281,10 +281,10 @@ Same method as before. Apple M1, headless Chrome, vsync off, 390 × 844. All 8 c
 
 | Medium tier, 4× CPU throttle | XHS pass | Now |
 |---|---|---|
-| Fly-in median | 2.8–3.6 ms | 3.1–3.9 ms |
-| Fly-in worst frame | 19.4–22.0 ms | 21.0–22.6 ms |
-| Pan worst frame | 6.0–18.2 ms | 6.2–15.4 ms |
-| Cue switch worst frame | 11.5–13.1 ms | 10.5–15.7 ms |
+| Fly-in median | 2.8–3.6 ms | 2.8–3.5 ms |
+| Fly-in worst frame | 19.4–22.0 ms | 19.8–22.6 ms |
+| Pan worst frame | 6.0–18.2 ms | 5.6–13.4 ms |
+| Cue switch worst frame | 11.5–13.1 ms | 11.2–18.3 ms |
 | Frames over 33 ms | 0 | 0 |
 
 **No real phone was tested.** These times are measured on the page's main thread on a Mac. They do not show GPU fill cost, and the cards and the see-through wall add overdraw. A check on a real phone is still needed.
