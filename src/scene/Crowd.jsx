@@ -87,8 +87,8 @@ void main(){
     // rim light: the band just inside the cut edge, read from a blurrier mip
     float soft = texture2D(uAtlas, vUv, 1.6).r;
     // only the head and shoulders catch it, and it fades out with distance
-    float rim = (1. - smoothstep(.5,.8,soft))*smoothstep(.3,.5,vQ.y)*(1. - smoothstep(18.,60.,vDist));
-    vec3 back = vTint*amb*.55;
+    float rim = (1. - smoothstep(.5,.8,soft))*smoothstep(.3,.5,vQ.y)*(1. - smoothstep(4.,16.,vDist));
+    vec3 back = vTint*amb*.22 + amb*.012;   // backs are near-black whatever the clothes
     vec3 front = vTint*(amb + uCue*vAtt*2.1 + vAtt*.3);
     // hair stays dark, the face catches the stage when seen from the front
     float head = smoothstep(.5,.56,vQ.y)*(1. - smoothstep(.13,.19,abs(vQ.x)));
@@ -97,7 +97,7 @@ void main(){
     c += rim*(uCue*.5 + vec3(.04))*vAtt*mix(1., .3, vFront);
     // phone screens are white-blue, light sticks warm white with a cue tint; both bloom
     float tw = .55 + .45*pow(.5 + .5*sin(uT*(1. + vSeed*3.) + vSeed*40.), 2.);
-    vec3 glow = mix(uEdge, vec3(1.,.93,.88), .45)*3.2*tw;
+    vec3 glow = mix(uEdge, vec3(1.,.93,.88), .45)*2.1*tw;
     c = mix(c, glow, smoothstep(.35,.6,t.g));
   }
   c = applyFog(c, vDist);
@@ -120,7 +120,8 @@ function cardMesh(cap, foot = 0) {
   // r1..r3: three random numbers in 0..1 per fan
   const put = (x, y, z, r1, r2, r3) => {
     aPos.setXYZ(n, x, y, z);
-    const variant = r1 < 0.64 ? Math.floor((r1 / 0.64) * SIL.plain) : SIL.plain + Math.floor(((r1 - 0.64) / 0.36) * (SIL.cols * SIL.rows - SIL.plain));
+    // about one fan in six holds up a phone or a light stick (nest_山顶_0005, nest_山顶_0006)
+    const P = 0.84, variant = r1 < P ? Math.floor((r1 / P) * SIL.plain) : SIL.plain + Math.floor(((r1 - P) / (1 - P)) * (SIL.cols * SIL.rows - SIL.plain));
     aInfo.setXYZW(n++, variant, 0.93 + r2 * 0.14, r3, (r2 * 7.77 % 1 - 0.5) * 0.16);
   };
   const commit = (count = n) => {

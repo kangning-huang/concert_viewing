@@ -216,3 +216,102 @@ Good pairs to compare: `aaa_xhs_hero_nest_red` with `nest_山顶_0005`; `aaa_xhs
 - Nest roof height, tier heights and rake are unchanged and still unverified (`BOWL_PARAMS.md`).
 - Views from behind an IMAG tower are partly blocked by it, as in the real show (`nest_317_0001`). The ray check only tests mascots.
 - The "Known gaps" list above still applies where this section does not replace it.
+
+# Follow-up 2: seated silhouette crowd, LED bands, lion and eagle
+
+Nothing was published or deployed. Only `aaa-fable52` was pushed.
+
+## What changed
+
+### Crowd
+- **Everyone sits.** There are no standing people anywhere. Floor blocks are rows of chairs facing the stage (0.5 m seats, 0.9 m rows).
+- **People are silhouette cutout boards.** One alpha-tested card per fan, instanced, no sorting. Each card picks one of 32 outlines, with small size, lean and tint jitter and a slow sway.
+- **The outlines come from the real photos.** 16 head outlines are cut from the dark foreground audience in 7 photos. The list, and what is drawn rather than photographed, is in `docs/XHS_STAGE_MATCH.md`.
+- **Light.** Backs are near-black with a thin rim of the show colour on head and shoulders. Seen from the stage side, cards take the wash colour. Raised phones and light sticks glow and bloom. About one fan in six holds one up.
+- **Three levels of detail.** Cards on the floor blocks and on the 3D seats around a bowl seat. Beyond that, the stand shader paints the same outlines per seat cell with one texture read. The twinkling light-stick points are kept.
+- The seat sheet said "standing audience in front". It now says "heads of the audience in front".
+
+### LED wall
+- **Two bands.** The upper band (9.6 m) stays under the roof. The lower band (4.8 m) drops by cue: closed for the title and confetti songs, 3.6 m on the red song (`nest_226_0011`), 6.4 m on the blue song (`nest_大对角_0003`).
+- **See-through mesh.** The black box inside the wall is gone. Where the content is dark, the towers and far stands show through. Bright content hides them (`nest_226_0008`).
+- **Module grid.** 1.0 × 0.5 m cabinets, the 4 × 2.4 m carrying frame, a lit bezel round each band.
+- **Content.** The red song has a new lower-band plate rectified from `nest_226_0011`. Other cues run the existing real captures across both bands.
+
+### Mascots
+- **Lion** (`nest_首场_0002`) and **eagle** (`nest_首场_0003`) are new. The **elephant** is rebuilt the same way.
+- Each is one mesh: smooth lofted body, limbs, trunk, wings; paint in vertex colours. One draw call each, no textures.
+- All inflatables carry a little of their own light, so the paint reads under a dark or strongly coloured wash.
+- Whale, airship and giant keep their shapes. The whale gets the new skin material only.
+- All six sit above the stage roof. `npm run raycheck`: PASS, 0 hits, Wuxi (3278 rays) and Nest (5056 rays), 0 footprint overlaps, 0 fly-path hits.
+
+### A hitch found and fixed
+- With the heavier scene, about one fly-in in ten had a single 100 ms frame at the start.
+- Cause: the seat-marker ring was mounted on the first fly-in frame, so its shader was linked right then. The first-pass build had the same stall, but smaller (13–17 ms).
+- Fix: the ring is always mounted, so it compiles during the hidden warm-up frames. 30 of 30 repeat runs were clean afterwards.
+
+## What stayed the same
+
+Damai map, seat picking, camera curves (1.6 s in, 1.25 s out), real photos on screens, `/wuxi/`, `/beijing/`, `?venue=`, `?quality=`. One review-only addition: `?seat=<section id>` opens straight on a seat, for screenshots.
+
+## Sizes
+
+Same method as before (`scripts/transfer.mjs`, 390 × 844).
+
+| | XHS pass | Now |
+|---|---|---|
+| First 3D frame, Wuxi | 1198 KB | 1267 KB |
+| First 3D frame, Nest | 937 KB | 1006 KB |
+| Whole `dist`, wire | 2189 KB | 2307 KB |
+| Whole `dist`, raw | 2985 KB | 3112 KB |
+| JS bundle, gzip | 320 KB | 327 KB |
+
+New files: silhouette atlas 45 KB, lower-band LED plate 20 KB (phone) and 53 KB (desktop). Budget is 5 MB first frame and 15 MB total.
+
+## Frame times
+
+Same method as before. Apple M1, headless Chrome, vsync off, 390 × 844. All 8 cases pass on both runs. Files: `docs/perf/smoke_sil_final.json`, `docs/perf/smoke_sil_final_medium_cpu4.json`.
+
+| High tier | XHS pass | Now |
+|---|---|---|
+| Fly-in median | 3.0–3.5 ms | 3.0–3.3 ms |
+| Fly-in worst frame | 9.8–14.6 ms | 10.4–16.9 ms |
+| Pan worst frame | 5.8–9.5 ms | 5.1–8.0 ms |
+| Cue switch worst frame | 7.5–9.9 ms | 6.5–8.7 ms |
+| Frames over 33 ms | 0 | 0 |
+
+| Medium tier, 4× CPU throttle | XHS pass | Now |
+|---|---|---|
+| Fly-in median | 2.8–3.6 ms | 3.1–3.9 ms |
+| Fly-in worst frame | 19.4–22.0 ms | 21.0–22.6 ms |
+| Pan worst frame | 6.0–18.2 ms | 6.2–15.4 ms |
+| Cue switch worst frame | 11.5–13.1 ms | 10.5–15.7 ms |
+| Frames over 33 ms | 0 | 0 |
+
+**No real phone was tested.** These times are measured on the page's main thread on a Mac. They do not show GPU fill cost, and the cards and the see-through wall add overdraw. A check on a real phone is still needed.
+
+## Checks run on the final build
+
+- `npm run build`: passes.
+- `npm run raycheck`: PASS, 0 hits, both venues, six mascots.
+- `node scripts/smoke.mjs dist sil_final`: 8 of 8 pass. Medium tier with 4× CPU throttle: 8 of 8 pass.
+
+## Screenshots
+
+In `docs/refs/screenshots/`:
+
+- Seat views with the UI: `aaa_sil_pov_wuxi_D3`, `aaa_sil_pov_wuxi_C3`, `aaa_sil_pov_wuxi_409`, `aaa_sil_pov_nest_D3`, `aaa_sil_pov_nest_floor_A1`.
+- Seat views without the UI: `aaa_sil_hero_nest_seat_red` (Nest 119), `aaa_sil_hero_wuxi_seat_blue` (Wuxi 224), `aaa_sil_hero_nest_floor_purple` (Nest A1).
+- LED: `aaa_sil_hero_led_split_red`, `aaa_sil_hero_led_split_blue`, `aaa_sil_hero_led_mesh_title`.
+- Mascots: `aaa_sil_hero_lion`, `aaa_sil_hero_eagle`, `aaa_sil_hero_elephant`.
+- Side by side: `aaa_sil_compare_nest_top_red`. Left is the real photo `nest_山顶_0005`; right is Nest section 602 on the red song.
+
+## Still not matched
+
+- **The side-by-side shows the bowl is too steep.** From the top tier the model looks down on the stage much more than the photo does. Tier heights and rake are still the unverified numbers in `BOWL_PARAMS.md`.
+- **Outlines are heads only.** Shoulders and backs share one drawn template, so the crowd is more uniform than a real one. Raised arms, phones and sticks are drawn, not cut from photos.
+- **The rim light draws a thin coloured line** round the nearest heads. It reads a little like an outline on the floor seats.
+- **Cards are flat.** A neighbour in your own row turns to face the camera, which is right for a cutout board but not for a person.
+- **The eye height is unchanged** (1.65 m above the step), which is higher than a seated head. The heads in front sit lower in the frame than in the photos.
+- **LED content.** Only the red song has a second plate. The split heights are read from two photos; the real show moves the bands more freely.
+- **Lion and eagle are simple.** They have the right pose, colours and big shapes, but no fur or sculpted feather relief, and the lion's face is plainer than the real one. Whale, airship and giant were not remodelled.
+- Mascots fly above the roof instead of standing on their plinths over the lower tier.

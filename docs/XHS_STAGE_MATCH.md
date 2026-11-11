@@ -19,6 +19,7 @@ The 12 `unknown/` photos show the same stage kit in a different stadium (red roo
 | Mascots and props | `nest_首场_0002` (lion), `nest_首场_0003` (eagle), `nest_首场_0004` (elephant), `nest_皇帝位_0006`, `nest_731_0005`, `nest_317_0004` (whale), `nest_大对角_0005`, `nest_全集视角_0008` (airship), `nest_718_0003` (fox on deck), `unknown_全价位_0001`, `nest_皇帝位_0011` (golden reclining figure) |
 | Nest roof and bowl from the seats | `nest_山顶_0001`–`0009`, `nest_517_0001`–`0012`, `nest_537_0001`–`0012`, `nest_717_0001`, `nest_718_0005`, `nest_718_0008`, `nest_攻略_0011`, `nest_皇帝位_0001`–`0010` |
 | Crowd and light sticks | `nest_526_0005`, `nest_726_0003`, `nest_317_0005`, `nest_大对角_0003`, `nest_大对角_0006` |
+| Dark audience in the foreground (silhouette sources) | `nest_山顶_0003`–`0006`, `nest_517_0002`, `nest_917_0005`, `unknown_全价位_0007` |
 | Haze, beams, lasers | `nest_226_0002`, `nest_226_0004`, `nest_226_0006`, `nest_517_0004`, `nest_537_0008`, `nest_山顶_0005`, `nest_山顶_0006`, `unknown_全价位_0012` |
 | Not usable for the model | `nest_全集视角_0001` (seat map), `nest_攻略_0012` (ground outside), selfies and performer close-ups |
 
@@ -36,6 +37,10 @@ The 12 `unknown/` photos show the same stage kit in a different stadium (red roo
 - [x] **Thin lit frame around each face.** `nest_537_0006`, `nest_537_0009`, `unknown_全价位_0007`.
 - [x] **Before the show every face carries the 万兽之王 title on black.** `nest_526_0004`, `nest_917_0001`, `nest_718_0009`.
 - [x] **Show content: blue water with the piano scene; red fur; red monologue.** Screens use real captures rectified from these photos. `nest_226_0001`, `nest_226_0011`, `nest_537_0006`.
+- [x] **The volume is two bands that separate.** The upper band stays under the roof. The lower band drops and opens a gap: narrow on the red song, wide later. `nest_226_0011`, `nest_大对角_0003`.
+- [x] **The lower band can carry its own content.** Red song: white network graphic under the red fur. The plate is rectified from `nest_226_0011`.
+- [x] **See-through mesh.** Where the content is dark you see the towers and the far stands through the slats. Bright content hides them. `nest_226_0008`, `nest_大对角_0006`.
+- [x] **Module grid.** 1.0 × 0.5 m cabinets and the heavier carrying frame behind them; a bright line where the two bands meet. `nest_226_0008`, `nest_526_0004`.
 - [x] **Line-array PA hangs in front of the faces**, near the corners of the long faces and on the end faces. `nest_526_0004`, `nest_大对角_0006`.
 
 ### Roof rig
@@ -68,7 +73,14 @@ The 12 `unknown/` photos show the same stage kit in a different stadium (red roo
 - [x] **Whale: pale grey humpback, white pleated throat, long flippers.** It is flown in the real show. `nest_皇帝位_0006`, `nest_731_0005`, `nest_317_0004`.
 - [x] **Airship: glowing golden "Joker Xue" blimp with ribs, fins and a railed basket.** `nest_大对角_0005`, `nest_全集视角_0008`.
 - [x] **Giant: golden reclining figure with filigree skin.** `unknown_全价位_0001`, `nest_皇帝位_0011`.
-- [x] **Placement stays above the stage roof.** In the Nest the lion, eagle and elephant stand on black plinths built over lower-tier seats (`nest_首场_0002`–`0004`). That would put them in the audience, so the approved positions above the roof are kept. `npm run raycheck` reports 0 hits.
+- [x] **Lion: tan body, heavy rust mane, head up in a roar with the mouth open, big paws, on a brown rock.** `nest_首场_0002`.
+- [x] **Eagle: dark brown, wings raised and thrown back, pale hooked beak, yellow feet, on a pale boulder.** `nest_首场_0003`.
+- [x] **Placement stays above the stage roof.** In the Nest the lion, eagle and elephant stand on black plinths built over lower-tier seats (`nest_首场_0002`–`0004`). That would put them in the audience, so all six mascots sit above the roof. `npm run raycheck` checks all six and reports 0 hits.
+
+### Audience
+- [x] **Everyone sits, floor blocks included.** Rows of chairs facing the stage. `nest_526_0001`, `nest_801_0005`, `nest_917_0005`.
+- [x] **From a seat, the rows in front are dark heads and shoulders against the bright stage.** `nest_山顶_0004`, `nest_山顶_0005`, `nest_山顶_0006`, `nest_517_0002`.
+- [x] **A few fans hold up a phone or a light stick.** About one in six in the model. `nest_山顶_0006`, `nest_917_0005`.
 
 ### Nest bowl
 - [x] **Red seats with white seats mixed in, on every tier.** `nest_首场_0002`, `nest_首场_0003`, `nest_首场_0004`, `nest_526_0005`.
@@ -83,9 +95,30 @@ The 12 `unknown/` photos show the same stage kit in a different stadium (red roo
 
 ## Not done
 
-- **Split LED mode.** In some songs the volume separates into an upper and a lower band (`nest_大对角_0003`, `nest_226_0011`). The model keeps one flown box.
-- **See-through LED mesh.** Dark content lets the towers show through the wall (`nest_226_0008`, `nest_大对角_0006`). The model wall is opaque.
-- **Lion and eagle.** They are real (`nest_首场_0002`, `nest_首场_0003`) but are not in the mascot list, and they stand in the audience.
-- **Seated floor crowd.** Floor blocks are seated on chairs (`nest_526_0001`, `nest_801_0005`). The model still shows standing people.
+- **More LED content.** Only the red song has its own lower-band plate. The gold rock look of `nest_大对角_0003` and the tile wall of `nest_226_0005` are not baked.
+- **Mascots on their plinths.** The real lion, eagle and elephant stand on black plinths over lower-tier seats. The keep-out rule forbids that, so they fly above the roof.
 - **Roof height and rake.** Photos do not give metres. Tier heights are unchanged; see `BOWL_PARAMS.md`.
 - **Daylight look.** The model is night only.
+
+## Silhouette atlas: which photos were used
+
+`scripts/bake_silhouettes.py` cuts 16 head-and-shoulder outlines out of the dark foreground audience in 7 photos. Run it with `python3 -I scripts/bake_silhouettes.py`. Output: `public/stage/joker_xue_2026/crowd/silhouettes.webp`, 1024 × 1024, 45 KB, 8 × 4 cells.
+
+| Photo | Outlines taken |
+|---|---|
+| `nest/nest_山顶_0005.webp` | 2 |
+| `nest/nest_山顶_0006.webp` | 5 |
+| `nest/nest_山顶_0004.webp` | 2 |
+| `nest/nest_山顶_0003.webp` | 1 |
+| `nest/nest_517_0002.webp` | 2 |
+| `nest/nest_917_0005.webp` | 1 |
+| `unknown/unknown_全价位_0007.webp` | 3 |
+
+What is from the photos and what is not:
+
+- **From the photos:** the outline of each head (crown, hair, ears, neck where it shows). Each is found by thresholding the dark figure against the bright stage behind it.
+- **Drawn, not from the photos:** the photos stop at the bottom edge of the frame, usually at the neck. Shoulders and upper back below that line follow one plain seated-back template that is blended into each photo outline.
+- **Drawn, not from the photos:** cells 16–31 are the same 16 outlines mirrored, with a raised arm and a phone or a light stick added. The pose follows `nest_917_0005` and `nest_山顶_0006`.
+- The atlas holds black-and-white masks only. No photo pixels are shipped, so nobody can be recognised.
+- Six more candidate crops were tried and dropped because a neighbour merged into the outline.
+
