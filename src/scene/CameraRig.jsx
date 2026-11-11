@@ -31,6 +31,9 @@ function flightPath(section, topY) {
   return new THREE.CatmullRomCurve3(pts, false, "centripetal");
 }
 
+// ?cam=x,y,z,tx,ty,tz — fixed camera for hero / review screenshots (no UI, see App.jsx).
+const HERO = new URLSearchParams(typeof window === "undefined" ? "" : window.location.search).get("cam")?.split(",").map(Number);
+
 export function CameraRig({ phase, section, onArrived, onReturned, lookEnabled }) {
   const { camera, size, gl } = useThree();
   const st = useRef({ t: 0, path: null, yaw: 0, pitch: 0, yawT: 0, pitchT: 0 });
@@ -78,6 +81,12 @@ export function CameraRig({ phase, section, onArrived, onReturned, lookEnabled }
 
   useFrame((_, dt) => {
     const s = st.current;
+    if (HERO) {
+      camera.position.set(HERO[0], HERO[1], HERO[2]);
+      camera.up.set(0, 1, 0);
+      camera.lookAt(HERO[3] ?? 0, HERO[4] ?? 10, HERO[5] ?? 0);
+      return;
+    }
     if (phase === "map" || !section || !s.path) {
       camera.position.set(0, mapHeight(size.width, size.height), 0.01);
       camera.up.set(0, 0, -1);

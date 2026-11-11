@@ -10,6 +10,7 @@ const LAND_MS = 200;
 const params = new URLSearchParams(window.location.search);
 const pathVenue = /\/wuxi\/?$/.test(location.pathname) ? "wuxi" : /\/beijing\/?$/.test(location.pathname) ? "nest" : null;
 const venue = VENUES[params.get("venue") ?? pathVenue] ?? VENUES.nest;
+const hero = params.has("cam");
 const deepPov = venue.povs?.[params.get("pov")];
 document.title = venue.meta.pageTitle;
 const switchLink = venue.id === "nest" ? { href: "?venue=wuxi", label: "切换到无锡站" } : { href: "?venue=nest", label: "切换到北京站" };
@@ -31,6 +32,7 @@ export default function App() {
   };
   const m = seatMetrics(section, venue);
   const onMap = phase === "map", inPov = phase === "pov";
+  if (hero) return <main className="app"><StageCanvas venue={venue} phase="pov" section={section} cue={CUES[params.get("cue")] ? params.get("cue") : "title"} onArrived={onArrived} onReturned={onReturned} /></main>;
   return (
     <main className="app">
       <StageCanvas venue={venue} phase={phase === "land" ? "pov" : phase} section={section} cue={cue} onArrived={onArrived} onReturned={onReturned} />

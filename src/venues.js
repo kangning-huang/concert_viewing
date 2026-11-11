@@ -32,7 +32,7 @@ function nestBowl(id, slot, tier, d0, d1, tone) {
   for (let k = 0; k <= 4; k++) pts.push(nestPolar(ri, f0 + ((f1 - f0) * k) / 4));
   for (let k = 4; k >= 0; k--) pts.push(nestPolar(ro, f0 + ((f1 - f0) * k) / 4));
   const dm = (d0 + d1) / 2, [x, z] = nestPolar(t.r0 + (t.r1 - t.r0) * dm, NEST_ROT + slot / NEST_N), y = t.y0 + t.rise * dm + 0.45;
-  return { id: String(id), tone, color: NEST_COLORS[tone], price: NEST_PRICES[tone], unsold: tone === "unsold", kind: "bowl", tier, points: pts, center: { x, z }, seat: { x, y: y + 1.2, z }, label: { x, z } };
+  return { id: String(id), tone, color: NEST_COLORS[tone], price: NEST_PRICES[tone], unsold: tone === "unsold", kind: "bowl", tier, slot, d: [d0, d1], points: pts, center: { x, z }, seat: { x, y: y + 1.2, z }, label: { x, z } };
 }
 const inR = (n, ...rs) => rs.some(([a, b]) => n >= a && n <= b);
 const nestLowerTone = (n) => (inR(n, [111, 113], [120, 122], [139, 141], [148, 150]) ? "unsold" : inR(n, [114, 119], [142, 147]) ? "green" : "lavender");
@@ -78,7 +78,7 @@ function wuxiBowl(id, name, slot, tier, d0, d1, tone, mapLabel) {
   for (let k = 0; k <= 4; k++) pts.push(superEllipse(ia, ib, a0 + ((a1 - a0) * k) / 4));
   for (let k = 4; k >= 0; k--) pts.push(superEllipse(oa, ob, a0 + ((a1 - a0) * k) / 4));
   const dm = (d0 + d1) / 2, [x, z] = superEllipse(...at(dm), wuxiAngle(slot)), y = t.y[0] + (t.y[1] - t.y[0]) * dm + 0.45;
-  return { id, name, tone, color: WUXI_COLORS[tone], price: WUXI_PRICES[tone], unsold: tone === "unsold", kind: "bowl", tier, mapLabel, points: pts, center: { x, z }, seat: { x, y: y + 1.2, z }, label: { x, z } };
+  return { id, name, tone, color: WUXI_COLORS[tone], price: WUXI_PRICES[tone], unsold: tone === "unsold", kind: "bowl", tier, slot, d: [d0, d1], mapLabel, points: pts, center: { x, z }, seat: { x, y: y + 1.2, z }, label: { x, z } };
 }
 const WUXI_CLOSED = new Set([3, 4, 14, 15, 19, 20, 30, 31]);
 const WUXI_END = new Set([2, 16, 18, 32]);
@@ -150,6 +150,39 @@ const wuxiCrowd = [["lower", 24], ["mid", 18], ["upper", 12]].map(([k, rows]) =>
   };
 });
 
+// ============================ procedural bowl specs ============================
+// Proportions are NOT new: tier rings are the ones above (same as the approved GLBs and
+// every seat POV). Roof numbers are read from the approved GLBs, plus the CITED figures in
+// docs BOWL_PARAMS.md (Nest: 24 truss columns, roof opening 185.3 × 127.5 m; Wuxi: 64
+// cantilever trusses, 128 radial cables, 6 hoop cables, ~30 m inner membrane).
+// Angles use x = a·cos θ, z = b·sin θ (× the Wuxi super-ellipse factor).
+export const bowlPoint = (eps, a, b, th) => {
+  const k = 1 + eps * Math.cos(4 * th);
+  return [a * Math.cos(th) * k, b * Math.sin(th) * k];
+};
+const NEST_BOWL = {
+  eps: 0,
+  slots: NEST_N,
+  theta: (slot) => Math.PI / 2 - 2 * Math.PI * (NEST_ROT + slot / NEST_N),
+  tiers: ["lower", "mid", "upper"].map((key) => {
+    const t = NEST_TIERS[key];
+    return { key, i: [t.r0, t.r0 * NEST_SQUASH], o: [t.r1, t.r1 * NEST_SQUASH], y: [t.y0, t.y0 + t.rise] };
+  }),
+  seatColors: [[0.55, 0.12, 0.15], [0.38, 0.19, 0.31], [0.14, 0.28, 0.48]], // approved GLB seat materials
+  field: { turf: [58, 39], track: null },
+  roof: { type: "nest", opening: [185.3 / 2, 127.5 / 2], outer: [174, 145], y: 81, columns: 24 },
+};
+const WUXI_BOWL = {
+  eps: 0.012,
+  slots: WUXI_N,
+  slotBase: 1,
+  theta: (slot) => wuxiAngle(slot),
+  tiers: ["lower", "mid", "upper"].map((key) => ({ key, i: WUXI_TIERS[key].i, o: WUXI_TIERS[key].o, y: WUXI_TIERS[key].y })),
+  seatColors: [[0.1, 0.3, 0.29], [0.12, 0.25, 0.34], [0.18, 0.28, 0.37]],
+  field: { turf: [47.6 * WS, 30.4 * WS], track: [61.7 * WS, 39.5 * WS] },
+  roof: { type: "wuxi", trusses: 64, radialCables: 128, hoops: 6, membraneDepth: 30, inner: [77.9 * WS, 52.6 * WS], outer: [123.5 * WS, 92.6 * WS], y: (th) => 69 + 5.5 * Math.cos(2 * th), facade: [124.5 * WS, 92.1 * WS] },
+};
+
 export const VENUES = {
   nest: {
     id: "nest",
@@ -163,6 +196,7 @@ export const VENUES = {
     quick: ["A1", "636"],
     compare: ["A1", "636"],
     crowdBands: nestCrowd,
+    bowl: NEST_BOWL,
     barriers: [[0, 24.6, 64, 0.06], [0, -24.6, 64, 0.06], [-48.2, 0, 0.06, 34], [48.2, 0, 0.06, 34]],
     placeholderRings: [
       ...Object.values(NEST_TIERS).map((t) => ({ inner: [t.r0, t.r0 * NEST_SQUASH], outer: [t.r1, t.r1 * NEST_SQUASH], y: [t.y0, t.y0 + t.rise] })),
@@ -183,6 +217,7 @@ export const VENUES = {
     compare: ["C3", "409a"],
     povs: { close: "C3", sweet: "409a" },
     crowdBands: wuxiCrowd,
+    bowl: WUXI_BOWL,
     barriers: [[0, 28, 96, 0.06], [0, -28, 96, 0.06], [-49, 0, 0.06, 56], [49, 0, 0.06, 56]],
     placeholderRings: [...Object.values(WUXI_TIERS).map((t) => ({ inner: t.i, outer: t.o, y: t.y }))],
     meta: { title: "无锡站", dates: ["11.13–15　11.20–22"], place: "无锡奥林匹克体育中心体育场", pageTitle: "薛之谦 · 无锡站选座预览", aria: "无锡站座位图" },
