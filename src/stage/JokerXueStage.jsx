@@ -14,7 +14,7 @@ export const DEFAULT_MOTIFS = { towers: true, building: true, whale: true, eleph
 // Colours per cue are sampled from the photos: warm-white blinders and cool beams before the
 // show (nest_526_0001, nest_226_0001), rainbow rim on the confetti song (nest_226_0005,
 // nest_917_0005), deep red wash with white beams and red lasers (nest_山顶_0005,
-// nest_226_0004), deep blue with a white sunburst (nest_517_0004, nest_全集视角_0005).
+// nest_226_0004), deep blue with a white sunburst (nest_517_0004, nest_皇帝位_0005).
 export const CUES = {
   title: { label: "开场", led: "title", edge: "#8fd0ff", rim: "#ffdcae", light: "#4f86ff", laser: "#6fd2ff", confetti: false, beam: "#dfe9ff" },
   purple: { label: "漫天纸屑", led: "purple", edge: "#d88bff", rim: "#ffffff", rainbow: true, light: "#a650ff", laser: "#ff7ad9", confetti: true, beam: "#f0c8ff" },
@@ -50,7 +50,7 @@ const giantTex = () =>
     g.fillRect(0, 0, w, h);
     g.lineCap = "round";
     for (let i = 0; i < 240; i++) {
-      g.strokeStyle = ["#ff8a1e", "#ffd34a", "#ff3b24", "#9dff6a"][Math.floor(r() * 4)];
+      g.strokeStyle = ["#ffd98a", "#ffb84a", "#fff1c4", "#e8a23a"][Math.floor(r() * 4)];
       g.lineWidth = 0.8 + r() * 2.4;
       g.beginPath();
       let x = r() * w, y = r() * h;
@@ -65,16 +65,29 @@ const giantTex = () =>
 
 const airshipTex = () =>
   canvasTex(1024, 512, (g, w, h) => {
-    g.fillStyle = "#c7a877";
+    const gr = g.createLinearGradient(0, 0, 0, h);
+    gr.addColorStop(0, "#b8862c");
+    gr.addColorStop(0.5, "#f0cf7a");
+    gr.addColorStop(1, "#b8862c");
+    g.fillStyle = gr;
     g.fillRect(0, 0, w, h);
-    g.strokeStyle = "rgba(75,45,20,.55)";
-    g.lineWidth = 7;
-    for (let i = 0; i < 9; i++) {
+    g.strokeStyle = "rgba(70,40,12,.7)";
+    g.lineWidth = 6;
+    for (let i = 0; i < 17; i++) {
       g.beginPath();
-      g.moveTo((i * w) / 8, 0);
-      g.lineTo((i * w) / 8, h);
+      g.moveTo((i * w) / 16, 0);
+      g.lineTo((i * w) / 16, h);
       g.stroke();
     }
+    for (let j = 1; j < 8; j++) {
+      g.beginPath();
+      g.moveTo(0, (j * h) / 8);
+      g.lineTo(w, (j * h) / 8);
+      g.stroke();
+    }
+    g.fillStyle = "#f3d98e";
+    g.fillRect(w * 0.06, h * 0.4, w * 0.38, h * 0.24);
+    g.fillRect(w * 0.56, h * 0.4, w * 0.38, h * 0.24);
     g.fillStyle = "#3a2a2a";
     g.font = 'italic 700 92px "Snell Roundhand","Times New Roman",serif';
     g.textAlign = "center";
@@ -184,7 +197,7 @@ export function useLedTextures() {
 }
 
 // ---- inflatable / sculpted motifs -------------------------------------------------
-const GREY = "#6f7274";
+const GREY = "#55575b";
 const Blob = ({ p, s, r = [0, 0, 0], color = GREY, rough = 0.62, metal = 0.05, children }) => (
   <mesh position={p} scale={s} rotation={r} castShadow={false}>
     <sphereGeometry args={[1, 32, 22]} />
@@ -206,8 +219,10 @@ const Plinth = ({ w = 13, d = 9, h = 3.2 }) => (
   </mesh>
 );
 
+// Dark grey inflatable elephant: big ears, trunk curled up, pale tusks (nest_首场_0004).
 function Elephant({ plinth = true, ...props }) {
-  const trunk = useMemo(() => [[6.3, 6.3, 0], [8, 5.7, 0], [9.4, 6.6, 0], [10.3, 8.8, 0], [11.7, 9.9, 0]], []);
+  const trunk = useMemo(() => [[6.4, 6.6, 0], [8.1, 5.2, 0], [9.7, 5.5, 0], [10.4, 7.4, 0], [9.9, 9.1, 0], [8.8, 9.6, 0]], []);
+  const tail = useMemo(() => [[-5.3, 6.6, 0], [-6.3, 5, 0], [-6.6, 2.6, 0]], []);
   const tuskL = useMemo(() => [[6, 4.9, 0.9], [7.6, 4.2, 1.1], [9.1, 5, 1.1]], []);
   const tuskR = useMemo(() => [[6, 4.9, -0.9], [7.6, 4.2, -1.1], [9.1, 5, -1.1]], []);
   return (
@@ -216,32 +231,38 @@ function Elephant({ plinth = true, ...props }) {
       <group position={[-1.5, plinth ? 3.2 : 0, 0]}>
         <Blob p={[0, 5.7, 0]} s={[5.5, 3.5, 3.2]} />
         <Blob p={[5, 6.8, 0]} s={[2.1, 2.2, 1.9]} />
-        <Blob p={[4.2, 7, 2.7]} s={[1.7, 2.2, 0.25]} r={[0.25, 0.4, 0]} color="#7d8080" />
-        <Blob p={[4.2, 7, -2.7]} s={[1.7, 2.2, 0.25]} r={[-0.25, -0.4, 0]} color="#7d8080" />
+        <Blob p={[3.6, 6.4, 2.5]} s={[2, 2.9, 0.3]} r={[0.3, 0.55, 0.15]} color="#5f6165" />
+        <Blob p={[3.6, 6.4, -2.5]} s={[2, 2.9, 0.3]} r={[-0.3, -0.55, 0.15]} color="#5f6165" />
+        <Blob p={[-1.8, 6.6, 0]} s={[3.6, 3.1, 3]} />
         {[[3.3, 1.5], [3.3, -1.5], [-3.3, 1.5], [-3.3, -1.5]].map(([x, z]) => (
           <mesh key={`${x}${z}`} position={[x, 1.8, z]}>
             <cylinderGeometry args={[1.05, 1.2, 3.8, 18]} />
             <meshStandardMaterial color={GREY} roughness={0.65} />
           </mesh>
         ))}
-        <Tube pts={trunk} radius={0.56} />
-        <Tube pts={tuskL} radius={0.16} color="#d8cfbd" />
-        <Tube pts={tuskR} radius={0.16} color="#d8cfbd" />
+        <Tube pts={trunk} radius={0.52} />
+        <Tube pts={tail} radius={0.16} />
+        <Tube pts={tuskL} radius={0.2} color="#efe6d6" />
+        <Tube pts={tuskR} radius={0.2} color="#efe6d6" />
       </group>
     </group>
   );
 }
 
+// Pale grey humpback with a white pleated throat, long flippers, flukes
+// (nest_皇帝位_0006, nest_731_0005, nest_317_0004).
 function Whale({ plinth = true, ...props }) {
   const geo = useMemo(() => {
     const prof = [[0.2, 0], [2.3, 0.5], [3.7, 2.4], [4.5, 5.5], [4.6, 9], [4.1, 12.5], [3, 15.5], [1.5, 17.7], [0.1, 18.6]];
     const pts = new THREE.SplineCurve(prof.map(([x, y]) => new THREE.Vector2(x, y))).getPoints(48);
     const g = new THREE.LatheGeometry(pts, 48);
     const pos = g.attributes.position, col = new Float32Array(pos.count * 3);
-    const belly = new THREE.Color("#d9e2ea"), back = new THREE.Color("#1c4257"), c = new THREE.Color();
+    const belly = new THREE.Color("#eef0ee"), back = new THREE.Color("#7f8a90"), c = new THREE.Color();
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i), a = Math.atan2(x, z), edge = 1.25 + 0.2 * Math.sin(y * 1.7) + 0.1 * Math.sin(y * 5.1);
       c.copy(belly).lerp(back, THREE.MathUtils.smoothstep(Math.abs(a), edge - 0.22, edge + 0.22));
+      // throat pleats under the head
+      if (Math.abs(a) < edge - 0.2 && y > 9 && Math.sin(a * 26) > 0.55) c.multiplyScalar(0.8);
       col.set([c.r, c.g, c.b], i * 3);
     }
     g.setAttribute("color", new THREE.BufferAttribute(col, 3));
@@ -255,21 +276,24 @@ function Whale({ plinth = true, ...props }) {
         <mesh geometry={geo}>
           <meshStandardMaterial vertexColors roughness={0.55} />
         </mesh>
-        <Blob p={[4.8, 4.8, 1.4]} s={[3.8, 1, 0.5]} r={[0, -0.25, -0.75]} color="#d9e2ea" />
-        <Blob p={[-4.8, 4.8, 1.4]} s={[3.8, 1, 0.5]} r={[0, 0.25, 0.75]} color="#d9e2ea" />
-        <Blob p={[2.7, 0.9, -1.6]} s={[3, 1.3, 1.2]} r={[0, 0.3, -0.2]} color="#c6d2dc" />
-        <Blob p={[-2.7, 0.9, -1.6]} s={[3, 1.3, 1.2]} r={[0, -0.3, 0.2]} color="#c6d2dc" />
+        <Blob p={[6.2, 9.6, 1.2]} s={[4.6, 1, 0.35]} r={[0, -0.2, -0.55]} color="#dfe3e2" />
+        <Blob p={[-6.2, 9.6, 1.2]} s={[4.6, 1, 0.35]} r={[0, 0.2, 0.55]} color="#dfe3e2" />
+        <Blob p={[0, 9, -4.4]} s={[0.25, 1.3, 0.8]} color="#7f8a90" />
+        <Blob p={[2.6, 0.3, 0]} s={[3, 1.5, 0.3]} r={[0, 0, -0.35]} color="#8d979c" />
+        <Blob p={[-2.6, 0.3, 0]} s={[3, 1.5, 0.3]} r={[0, 0, 0.35]} color="#8d979c" />
       </group>
     </group>
   );
 }
 
+// Glowing golden "Joker Xue" blimp with ribs, fins and a railed basket
+// (nest_大对角_0005, nest_全集视角_0008).
 function Airship(props) {
   const map = useMemo(airshipTex, []);
   return (
     <group {...props}>
       <Blob p={[0, 0, 0]} s={[7.5, 2.8, 2.8]}>
-        <meshStandardMaterial map={map} roughness={0.7} emissive="#4a3620" emissiveIntensity={0.55} />
+        <meshStandardMaterial map={map} roughness={0.6} emissiveMap={map} emissive="#ffd9a0" emissiveIntensity={0.95} />
       </Blob>
       {[-4.5, 0, 4.5].map((x) => (
         <mesh key={x} position={[x, 0, 0]} rotation={[0, Math.PI / 2, 0]} scale={[1, 1, 1]}>
@@ -277,10 +301,25 @@ function Airship(props) {
           <meshStandardMaterial color="#3b2b1c" />
         </mesh>
       ))}
-      <mesh position={[0, -4.6, 0]}>
-        <boxGeometry args={[3.2, 0.9, 1.8]} />
-        <meshStandardMaterial color="#b98a44" emissive="#7a4d12" emissiveIntensity={0.9} />
+      {/* tail fins + railed basket on four lines */}
+      <Blob p={[-6.9, 1.6, 0]} s={[1.5, 1.5, 0.12]} color="#a8782a" />
+      <Blob p={[-6.9, -1.6, 0]} s={[1.5, 1.5, 0.12]} color="#a8782a" />
+      <Blob p={[-6.9, 0, 1.6]} s={[1.5, 0.12, 1.5]} color="#a8782a" />
+      <Blob p={[-6.9, 0, -1.6]} s={[1.5, 0.12, 1.5]} color="#a8782a" />
+      <mesh position={[0, -4.7, 0]}>
+        <cylinderGeometry args={[1.5, 1.2, 0.5, 20]} />
+        <meshStandardMaterial color="#c9a04e" metalness={0.7} roughness={0.35} emissive="#7a4d12" emissiveIntensity={0.9} />
       </mesh>
+      <mesh position={[0, -3.9, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[1.5, 0.06, 6, 24]} />
+        <meshStandardMaterial color="#e0b860" metalness={0.8} roughness={0.3} emissive="#7a4d12" emissiveIntensity={0.9} />
+      </mesh>
+      {[[1.3, 0.6], [-1.3, 0.6], [1.3, -0.6], [-1.3, -0.6]].map(([x, z]) => (
+        <mesh key={`${x}${z}`} position={[x, -3.4, z]}>
+          <cylinderGeometry args={[0.03, 0.03, 2.2, 4]} />
+          <meshStandardMaterial color="#3b2b1c" />
+        </mesh>
+      ))}
     </group>
   );
 }
@@ -290,16 +329,17 @@ function Giant(props) {
   const arm = useMemo(() => [[12, 3.2, 0.5], [17, 2.8, 2], [21, 3.8, 1.3], [22.3, 8.2, 0.6]], []);
   const legL = useMemo(() => [[-3, 3, 1.4], [-10, 3.2, 1.8], [-15, 2.1, 2]], []);
   const legR = useMemo(() => [[-3, 3, -1.4], [-10, 3.6, -1.6], [-15.5, 2.3, -1.8]], []);
-  const skin = <meshStandardMaterial color="#6d6c68" roughness={0.5} metalness={0.45} emissiveMap={em} emissive="#ffffff" emissiveIntensity={1.6} />;
+  // reclining golden figure with filigree skin (unknown_全价位_0001, nest_皇帝位_0011)
+  const skin = <meshStandardMaterial color="#b8893a" roughness={0.38} metalness={0.8} emissiveMap={em} emissive="#ffcf80" emissiveIntensity={1.1} />;
   return (
     <group {...props}>
       <Blob p={[4, 3.6, 0]} s={[8.5, 3.6, 4.4]}>{skin}</Blob>
       <Blob p={[-4.2, 3.2, 0]} s={[5, 3.1, 4]}>{skin}</Blob>
-      <Blob p={[13.8, 3.3, 0]} s={[2.4, 2.3, 2.2]} color="#a3a29d" rough={0.32} metal={0.7} />
-      <Tube pts={legL} radius={1.9} color="#8f8e88" rough={0.3} metal={0.75} />
-      <Tube pts={legR} radius={1.9} color="#8f8e88" rough={0.3} metal={0.75} />
-      <Tube pts={arm} radius={0.95} color="#b7b6b0" rough={0.26} metal={0.8} />
-      <Blob p={[22.4, 9, 0.6]} s={[1.4, 1.4, 1.4]} color="#c4c3bd" rough={0.26} metal={0.8} />
+      <Blob p={[13.8, 3.3, 0]} s={[2.4, 2.3, 2.2]} color="#c9a04e" rough={0.32} metal={0.8} />
+      <Tube pts={legL} radius={1.9} color="#b08a3c" rough={0.3} metal={0.8} />
+      <Tube pts={legR} radius={1.9} color="#b08a3c" rough={0.3} metal={0.8} />
+      <Tube pts={arm} radius={0.95} color="#d2aa58" rough={0.26} metal={0.85} />
+      <Blob p={[22.4, 9, 0.6]} s={[1.4, 1.4, 1.4]} color="#d8b260" rough={0.26} metal={0.85} />
       <group position={[21, 9.9, 0.6]}>
         <mesh position={[0, 0.5, 0]}>
           <boxGeometry args={[12, 1, 7]} />
