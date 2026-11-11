@@ -1,16 +1,19 @@
-// Audience. Three LODs, all instanced / shader-driven:
-//   far   – people are painted per seat cell by the stand shader (ProcBowl.jsx),
+// Audience. Everyone sits (no standing at these shows). Three LODs, all instanced / shader-driven:
+//   far   – seated silhouettes are painted per seat cell by the stand shader (ProcBowl.jsx),
 //   mid   – light sticks: one twinkling point per fan (StandLights / floor sticks),
-//   near  – real 3D seats, steps and people around the picked seat (NearSeats) and
-//           standing people on the floor blocks (FloorCrowd).
+//   near  – silhouette cutout boards: one alpha-tested card per fan, on the seated floor
+//           blocks (FloorCrowd) and on real 3D seats around a bowl POV (NearSeats).
+// The cutouts come from the dark foreground audience in the XHS photos
+// (scripts/bake_silhouettes.py → public/stage/joker_xue_2026/crowd/silhouettes.webp).
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 import { atmoUniforms, ATMO, GLSL_ATMO, GLSL_OUT } from "./atmo.js";
 import { occupancy, slotIds, tierPoint, tierRows } from "./venue/ProcBowl.jsx";
+import { SIL, silhouetteAtlas } from "./silhouettes.js";
 
 const lcg = (seed) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 
-// ---- instanced, vertex-lit material (people, seats, steps) -------------------------------
+// ---- instanced, vertex-lit material (seats, steps) -------------------------------
 // Lighting is evaluated per vertex from the stage position; fragments only add fog.
 const INST_VS = /* glsl */ `
 ${GLSL_ATMO}
@@ -22,11 +25,6 @@ void main(){
   float ndl = max(dot(n,Ld),0.)*.85 + .15;
   float att = 1./(1.+pow(d/80.,2.));
   vec3 alb = instanceColor;
-  #ifdef PERSON
-    float headM = step(1.40, position.y);
-    float front = smoothstep(-.15,.45, dot(n, normalize(vec3(Ld.x,0.,Ld.z))));
-    alb = mix(alb, mix(vec3(.022,.02,.02), vec3(.58,.42,.34), front), headM);
-  #endif
   vec3 amb = vec3(.030,.034,.048) + uCue*.03;
   vC = alb*(amb + uCue*ndl*att*2.1 + ndl*att*.3);
   vec4 mv = viewMatrix*wp; vDist = length(mv.xyz);
@@ -36,37 +34,102 @@ const INST_FS = /* glsl */ `
 ${GLSL_ATMO}
 varying vec3 vC; varying float vDist;
 void main(){ vec3 c = applyFog(vC, vDist); gl_FragColor = vec4(c,1.); ${GLSL_OUT} }`;
-const instMaterial = (person) => new THREE.ShaderMaterial({ defines: person ? { PERSON: 1 } : {}, uniforms: atmoUniforms(), vertexShader: INST_VS, fragmentShader: INST_FS });
+const instMaterial = () => new THREE.ShaderMaterial({ uniforms: atmoUniforms(), vertexShader: INST_VS, fragmentShader: INST_FS });
 
-function mergeGeos(list) {
-  const pos = [], nor = [], idx = [];
-  let base = 0;
-  for (const g of list) {
-    const p = g.attributes.position, n = g.attributes.normal, i = g.index;
-    for (let k = 0; k < p.count; k++) pos.push(p.getX(k), p.getY(k), p.getZ(k)), nor.push(n.getX(k), n.getY(k), n.getZ(k));
-    for (let k = 0; k < i.count; k++) idx.push(i.getX(k) + base);
-    base += p.count;
+// ---- silhouette cutout boards -----------------------------------------------------------------
+// One card = one seated fan. The card turns about its vertical axis to face the camera (and
+// tips over when seen from above, so the fly-in from the map never sees it edge-on). Backs are
+// near-black with a rim of show light around the outline, like the heads in the seat-view
+// photos (nest_山顶_0005, nest_山顶_0006); seen from the stage side they take the wash colour.
+const CARD_VS = /* glsl */ `
+${GLSL_ATMO}
+attribute vec3 aPos; attribute vec4 aInfo;   // aInfo = variant, size, seed, lean (rad)
+uniform float uFoot;
+varying vec2 vUv; varying vec2 vQ; varying vec3 vTint; varying float vDist; varying float vFront; varying float vAtt; varying float vSeed;
+void main(){
+  vec3 toCam = cameraPosition - aPos; float dc = max(length(toCam), 1e-3); vec3 n = toCam/dc;
+  vec2 rxz = normalize(vec2(n.z, -n.x) + vec2(1e-5, 0.));
+  vec3 right = vec3(rxz.x, 0., rxz.y);
+  vec3 up = normalize(mix(vec3(0.,1.,0.), cross(n, right), smoothstep(.55,.95,n.y)));
+  float seed = aInfo.z;
+  float lean = aInfo.w + .022*sin(uT*(1.1+seed) + seed*50.);
+  float y = position.y >= 0. ? position.y*${SIL.h.toFixed(2)} : position.y*uFoot;
+  vec2 q = vec2(position.x*${SIL.w.toFixed(2)}, y)*aInfo.y;
+  q = vec2(q.x*cos(lean) - q.y*sin(lean), q.x*sin(lean) + q.y*cos(lean));
+  vec3 wp = aPos + right*q.x + up*q.y;
+  float var = aInfo.x; vec2 cell = vec2(mod(var, ${SIL.cols}.), floor(var/${SIL.cols}.));
+  float u = position.x + .5; if (fract(seed*7.31) > .5) u = 1. - u;
+  vUv = (cell + vec2(clamp(u,.02,.98), 1. - clamp(position.y, 0., .995)))/vec2(${SIL.cols}., ${SIL.rows}.);
+  vQ = position.xy; vSeed = seed;
+  // clothes: mostly dark, some pale tops (the floor blocks read pale in nest_917_0005)
+  float h = fract(seed*13.7), h2 = fract(seed*91.3);
+  vTint = mix(vec3(.05,.055,.07), vec3(.62,.6,.6), h*h*h)*vec3(.8+.4*h2, .78+.4*fract(h2*7.), .78+.5*fract(h2*13.));
+  vec3 Ld = vec3(0.,24.,0.) - aPos; float d = length(Ld);
+  vAtt = 1./(1.+pow(d/80.,2.));
+  vFront = smoothstep(-.35,.35, dot(normalize(toCam.xz + 1e-4), normalize(-aPos.xz + 1e-4)));
+  vec4 mv = viewMatrix*vec4(wp,1.); vDist = length(mv.xyz);
+  gl_Position = projectionMatrix*mv;
+}`;
+const CARD_FS = /* glsl */ `
+${GLSL_ATMO}
+uniform sampler2D uAtlas;
+varying vec2 vUv; varying vec2 vQ; varying vec3 vTint; varying float vDist; varying float vFront; varying float vAtt; varying float vSeed;
+void main(){
+  vec3 amb = vec3(.030,.034,.048) + uCue*.03;
+  vec3 c;
+  if (vQ.y < 0.) {
+    // chair back and legs under the card (floor blocks only)
+    if (abs(vQ.x) > .37) discard;
+    c = vec3(.03,.03,.034)*(amb + uCue*vAtt*.6);
+  } else {
+    vec4 t = texture2D(uAtlas, vUv);
+    if (max(t.r, t.g) < .5) discard;
+    // rim light: the band just inside the cut edge, read from a blurrier mip
+    float soft = texture2D(uAtlas, vUv, 1.6).r;
+    // only the head and shoulders catch it, and it fades out with distance
+    float rim = (1. - smoothstep(.5,.8,soft))*smoothstep(.3,.5,vQ.y)*(1. - smoothstep(18.,60.,vDist));
+    vec3 back = vTint*amb*.55;
+    vec3 front = vTint*(amb + uCue*vAtt*2.1 + vAtt*.3);
+    // hair stays dark, the face catches the stage when seen from the front
+    float head = smoothstep(.5,.56,vQ.y)*(1. - smoothstep(.13,.19,abs(vQ.x)));
+    front = mix(front, vec3(.58,.42,.34)*(amb + uCue*vAtt*2.1 + vAtt*.3), head*.85);
+    c = mix(back, front, vFront);
+    c += rim*(uCue*.5 + vec3(.04))*vAtt*mix(1., .3, vFront);
+    // phone screens are white-blue, light sticks warm white with a cue tint; both bloom
+    float tw = .55 + .45*pow(.5 + .5*sin(uT*(1. + vSeed*3.) + vSeed*40.), 2.);
+    vec3 glow = mix(uEdge, vec3(1.,.93,.88), .45)*3.2*tw;
+    c = mix(c, glow, smoothstep(.35,.6,t.g));
   }
-  const out = new THREE.BufferGeometry();
-  out.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
-  out.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3));
-  out.setIndex(idx);
-  return out;
+  c = applyFog(c, vDist);
+  gl_FragColor = vec4(c,1.);
+  ${GLSL_OUT}
+}`;
+function cardMesh(cap, foot = 0) {
+  const g = new THREE.InstancedBufferGeometry();
+  // two stacked quads: y 0..1 = one atlas cell, y -1..0 = chair block (height = uFoot metres)
+  g.setAttribute("position", new THREE.Float32BufferAttribute([-0.5, 0, 0, 0.5, 0, 0, 0.5, 1, 0, -0.5, 1, 0, -0.5, -1, 0, 0.5, -1, 0], 3));
+  g.setIndex(foot > 0 ? [0, 1, 2, 0, 2, 3, 4, 5, 1, 4, 1, 0] : [0, 1, 2, 0, 2, 3]);
+  const aPos = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3), aInfo = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4);
+  g.setAttribute("aPos", aPos);
+  g.setAttribute("aInfo", aInfo);
+  g.instanceCount = 0;
+  const m = new THREE.Mesh(g, new THREE.ShaderMaterial({ side: THREE.DoubleSide, uniforms: atmoUniforms({ uAtlas: { value: silhouetteAtlas() }, uFoot: { value: foot } }), vertexShader: CARD_VS, fragmentShader: CARD_FS }));
+  m.frustumCulled = false;
+  m.name = "silhouettes";
+  let n = 0;
+  // r1..r3: three random numbers in 0..1 per fan
+  const put = (x, y, z, r1, r2, r3) => {
+    aPos.setXYZ(n, x, y, z);
+    const variant = r1 < 0.64 ? Math.floor((r1 / 0.64) * SIL.plain) : SIL.plain + Math.floor(((r1 - 0.64) / 0.36) * (SIL.cols * SIL.rows - SIL.plain));
+    aInfo.setXYZW(n++, variant, 0.93 + r2 * 0.14, r3, (r2 * 7.77 % 1 - 0.5) * 0.16);
+  };
+  const commit = (count = n) => {
+    n = 0;
+    g.instanceCount = count;
+    aPos.needsUpdate = aInfo.needsUpdate = true;
+  };
+  return { mesh: m, put, commit, count: () => n };
 }
-// 1.7 m person: tapered torso + shoulders + head (head verts sit above y = 1.36).
-function personGeo(sides) {
-  const body = new THREE.CylinderGeometry(0.19, 0.14, 1.28, sides, 1);
-  body.translate(0, 0.64, 0);
-  body.scale(1, 1, 0.62);
-  const sh = new THREE.SphereGeometry(0.2, sides, 3, 0, Math.PI * 2, 0, Math.PI / 2);
-  sh.scale(1, 0.38, 0.62);
-  sh.translate(0, 1.27, 0);
-  const head = new THREE.SphereGeometry(0.105, Math.max(6, sides), 5);
-  head.scale(0.92, 1.12, 1);
-  head.translate(0, 1.53, 0);
-  return mergeGeos([body, sh, head]);
-}
-const CLOTH = ["#0d0e12", "#15171d", "#22252c", "#3a3d45", "#c9c5bd", "#e9e6df", "#5a2630", "#283a5c", "#1f3b33", "#6b5a44", "#8a8d93", "#b06a7a"].map((c) => new THREE.Color(c));
 
 function instanced(geo, mat, cap) {
   const m = new THREE.InstancedMesh(geo, mat, cap);
@@ -123,35 +186,36 @@ export function StandLights({ venue, density = 1 }) {
   return <primitive object={pts} />;
 }
 
-// Standing audience on the floor blocks (leaves a hole at each block's POV).
-export function FloorCrowd({ sections, density = 1 }) {
+// Seated audience on the floor blocks: rows of chairs facing the stage, one cutout board per
+// fan (nest_526_0001, nest_801_0005, nest_917_0005). Leaves the picked seat empty.
+const ROW_PITCH = 0.9, SEAT_PITCH = 0.5, SEAT_Y = 0.5;
+export function FloorCrowd({ venue, density = 1 }) {
   const group = useMemo(() => {
-    const r = lcg(23), floor = sections.filter((s) => s.kind === "floor"), spots = [], d = Math.max(0.05, Math.min(1, density));
-    const dx = 0.62 / Math.sqrt(d), dz = 0.8 / Math.sqrt(d);
+    const r = lcg(23), floor = venue.sections.filter((s) => s.kind === "floor"), d = Math.max(0.05, Math.min(1, density)), spots = [];
     for (const s of floor) {
       const xs = s.points.map((p) => p[0]), zs = s.points.map((p) => p[1]);
       const x0 = Math.min(...xs), x1 = Math.max(...xs), z0 = Math.min(...zs), z1 = Math.max(...zs);
-      for (let x = x0 + 0.3; x < x1; x += dx)
-        for (let z = z0 + 0.3; z < z1; z += dz) {
-          const px = x + (r() - 0.5) * 0.3, pz = z + (r() - 0.5) * 0.3;
-          if (Math.hypot(px - s.seat.x, pz - s.seat.z) > 1.05) spots.push([px, pz]);
+      // blocks beside the long faces look along z, blocks at the ends look along x
+      const alongX = Math.abs(s.center.z) > venue.stage.halfZ;
+      const [du, dv] = alongX ? [SEAT_PITCH, ROW_PITCH] : [ROW_PITCH, SEAT_PITCH];
+      for (let x = x0 + 0.35; x < x1 - 0.2; x += du)
+        for (let z = z0 + 0.35; z < z1 - 0.2; z += dv) {
+          const keep = r() < 0.55 + 0.45 * d * d, a = r(), b = r(), c = r();
+          if (!keep || r() > 0.97) continue;
+          if (Math.hypot(x - s.seat.x, z - s.seat.z) > 0.7) spots.push([x + (a - 0.5) * 0.08, z + (b - 0.5) * 0.08, a, b, c]);
         }
     }
-    const mesh = instanced(personGeo(d >= 1 ? 7 : 5), instMaterial(true), Math.max(1, spots.length)), o = new THREE.Object3D(), pos = [], seeds = [];
-    spots.forEach(([x, z], i) => {
-      o.position.set(x, 0.05, z);
-      o.rotation.y = Math.atan2(-x, -z) + (r() - 0.5) * 0.7;
-      o.scale.set(0.95 + r() * 0.2, 0.9 + r() * 0.16, 0.95 + r() * 0.2);
-      o.updateMatrix();
-      mesh.setMatrixAt(i, o.matrix);
-      mesh.setColorAt(i, CLOTH[Math.floor(r() ** 1.6 * CLOTH.length)]);
-      if (r() < 0.17) pos.push(x + (r() - 0.5) * 0.3, 1.75 + r() * 0.35, z + (r() - 0.5) * 0.3), seeds.push(r());
-    });
-    mesh.count = spots.length;
+    const cards = cardMesh(Math.max(1, spots.length), SEAT_Y), pos = [], seeds = [];
+    for (const [x, z, a, b, c] of spots) {
+      cards.put(x, 0.05 + SEAT_Y, z, a, b, c);
+      if (r() < 0.14) pos.push(x + (r() - 0.5) * 0.3, 1.25 + r() * 0.4, z + (r() - 0.5) * 0.3), seeds.push(r());
+    }
+    cards.commit();
     const g = new THREE.Group();
-    g.add(mesh, stickPoints(pos, seeds));
+    g.name = "floor-crowd";
+    g.add(cards.mesh, stickPoints(pos, seeds));
     return g;
-  }, [sections, density]);
+  }, [venue, density]);
   return <primitive object={group} />;
 }
 
@@ -162,14 +226,15 @@ export function NearSeats({ venue, section, enabled = true }) {
     const box = new THREE.BoxGeometry(1, 1, 1);
     const g = new THREE.Group();
     g.name = "near-seats";
-    const tread = instanced(box, instMaterial(false), CAP), back = instanced(box, instMaterial(false), CAP), pan = instanced(box, instMaterial(false), CAP), people = instanced(personGeo(8), instMaterial(true), CAP);
-    g.add(tread, back, pan, people);
-    return { g, tread, back, pan, people };
+    const tread = instanced(box, instMaterial(false), CAP), back = instanced(box, instMaterial(false), CAP), pan = instanced(box, instMaterial(false), CAP), cards = cardMesh(CAP);
+    g.add(tread, back, pan, cards.mesh);
+    return { g, tread, back, pan, cards };
   }, []);
   useEffect(() => {
-    const { tread, back, pan, people } = kit, spec = venue.bowl;
+    const { tread, back, pan, cards } = kit, spec = venue.bowl;
     const off = () => {
-      tread.count = back.count = pan.count = people.count = 0;
+      tread.count = back.count = pan.count = 0;
+      cards.commit(0);
       ATMO.uSeat.value.set(0, 0, 0, 0);
     };
     if (!enabled || !section || section.kind !== "bowl") return off();
@@ -180,7 +245,7 @@ export function NearSeats({ venue, section, enabled = true }) {
     ATMO.uSeat.value.set(cx, cz, PATCH_R, 0);
     const row0 = Math.floor(dm * rows), seatCol = new THREE.Color(...spec.seatColors[ti]), conc = new THREE.Color(0.12, 0.125, 0.13), c = new THREE.Color();
     const o = new THREE.Object3D(), X = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(), basis = new THREE.Matrix4();
-    let nT = 0, nS = 0, nP = 0;
+    let nT = 0, nS = 0;
     const put = (mesh, i, px, py, pz, sx, sy, sz, col) => {
       o.position.set(px, py, pz);
       o.quaternion.setFromRotationMatrix(basis);
@@ -209,22 +274,15 @@ export function NearSeats({ venue, section, enabled = true }) {
         const bx = p[0] - Z.x * depth * 0.38, bz = p[2] - Z.z * depth * 0.38;
         put(back, nS, bx, top + 0.62, bz, 0.44, 0.46, 0.05, c.copy(seatCol).multiplyScalar(0.8 + r() * 0.3));
         put(pan, nS++, p[0] - Z.x * depth * 0.16, top + 0.42, p[2] - Z.z * depth * 0.16, 0.44, 0.06, 0.4, c.copy(seatCol).multiplyScalar(0.7 + r() * 0.3));
-        const hOcc = r(), hStand = r(), hCol = r(), hS = r();
-        if (hOcc < occ(t.key, section.slot, d) && Math.hypot(p[0] - seat.x, p[2] - seat.z) > 0.75) {
-          const standing = hStand < 0.25, sy = (standing ? 0.98 : 0.74) * (0.94 + hS * 0.12);
-          o.position.set(p[0] - Z.x * depth * (standing ? 0.05 : 0.2), top, p[2] - Z.z * depth * (standing ? 0.05 : 0.2));
-          o.rotation.set(0, Math.atan2(Z.x, Z.z) + (hS - 0.5) * 0.5, 0);
-          o.scale.set(1, sy, 1);
-          o.updateMatrix();
-          people.setMatrixAt(nP, o.matrix);
-          people.setColorAt(nP++, CLOTH[Math.floor(hCol ** 1.6 * CLOTH.length)]);
-        }
+        const hOcc = r(), h1 = r(), h2 = r(), h3 = r();
+        // everyone sits: the card stands on the seat pan, in front of the seat back
+        if (hOcc < occ(t.key, section.slot, d) && Math.hypot(p[0] - seat.x, p[2] - seat.z) > 0.75) cards.put(p[0] - Z.x * depth * 0.2, top + 0.45, p[2] - Z.z * depth * 0.2, h1, h2, h3);
       }
     }
     tread.count = nT;
     back.count = pan.count = nS;
-    people.count = nP;
-    for (const m of [tread, back, pan, people]) (m.instanceMatrix.needsUpdate = true), (m.instanceColor.needsUpdate = true);
+    cards.commit();
+    for (const m of [tread, back, pan]) (m.instanceMatrix.needsUpdate = true), (m.instanceColor.needsUpdate = true);
     return undefined;
   }, [kit, venue, section, enabled]);
   return <primitive object={kit.g} />;

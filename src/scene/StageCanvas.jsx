@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, Bloom, Vignette, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
@@ -6,6 +6,7 @@ import * as THREE from "three";
 import { ProcBowl } from "./venue/ProcBowl.jsx";
 import { ATMO, tickAtmo } from "./atmo.js";
 import { StandLights, FloorCrowd, NearSeats } from "./Crowd.jsx";
+import { silhouetteAtlas } from "./silhouettes.js";
 import { CameraRig } from "./CameraRig.jsx";
 import { JokerXueStage, CUES } from "../stage/JokerXueStage.jsx";
 import { TIERS, initialQuality, stepDown, fpsMonitor } from "../quality.js";
@@ -69,6 +70,19 @@ function Warmup({ frames = 4 }) {
   return null;
 }
 
+// Upload the crowd atlas as soon as it is decoded, so the first fly-in never waits for it.
+function CrowdAtlas() {
+  const gl = useThree((st) => st.gl);
+  useEffect(() => {
+    let live = true;
+    silhouetteAtlas().userData.ready.then((t) => live && t && gl.initTexture(t));
+    return () => {
+      live = false;
+    };
+  }, [gl]);
+  return null;
+}
+
 function QualityWatch({ onDrop }) {
   const mon = useMemo(() => fpsMonitor(), []);
   useFrame((_, dt) => {
@@ -124,11 +138,12 @@ export function StageCanvas({ venue, phase, section, cue, onArrived, onReturned 
       <JokerXueStage cue={cue} quality={q.stage} />
       <StandLights venue={venue} density={q.crowd} />
       <NearSeats venue={venue} section={section} enabled={q.bowl !== "stub"} />
-      <FloorCrowd sections={venue.sections} density={q.crowd} />
+      <FloorCrowd venue={venue} density={q.crowd} />
       <Barriers bars={venue.barriers} />
       <SeatMarker section={section} visible={phase === "flyin" || phase === "flyout"} />
       <CameraRig phase={phase} section={section} onArrived={onArrived} onReturned={onReturned} lookEnabled={phase === "pov"} />
       <Post tier={tier} />
+      <CrowdAtlas />
       <Warmup />
       {adaptive && <QualityWatch onDrop={onDrop} />}
     </Canvas>

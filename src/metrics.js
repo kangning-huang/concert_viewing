@@ -33,5 +33,5 @@ function promise(zone, s) {
     : "整套舞台尽收眼底，人很小，主要看大屏";
 }
 function occlusion(s) {
-  return s.kind === "floor" ? "前排站立观众与围栏会入画" : s.tier === "lower" ? "舞台塔架可能遮挡部分视线" : "顶棚边缘会进入画面上方";
+  return s.kind === "floor" ? "前排观众的头和围栏会入画" : s.tier === "lower" ? "舞台塔架可能遮挡部分视线" : "顶棚边缘会进入画面上方";
 }

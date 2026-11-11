@@ -11,7 +11,8 @@ const params = new URLSearchParams(window.location.search);
 const pathVenue = /\/wuxi\/?$/.test(location.pathname) ? "wuxi" : /\/beijing\/?$/.test(location.pathname) ? "nest" : null;
 const venue = VENUES[params.get("venue") ?? pathVenue] ?? VENUES.nest;
 const hero = params.has("cam");
-const deepPov = venue.povs?.[params.get("pov")];
+// ?seat=<section id> opens straight on that seat (review screenshots, scripts/shot.mjs)
+const deepPov = venue.povs?.[params.get("pov")] ?? (venue.byId(params.get("seat")) ? params.get("seat") : undefined);
 document.title = venue.meta.pageTitle;
 const switchLink = venue.id === "nest" ? { href: "?venue=wuxi", label: "切换到无锡站" } : { href: "?venue=nest", label: "切换到北京站" };
 

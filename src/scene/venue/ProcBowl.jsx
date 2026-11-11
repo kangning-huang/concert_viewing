@@ -1,7 +1,7 @@
 // Procedural stadium bowl. Zero bytes of geometry are downloaded: everything is built at
 // start-up from the venue spec (src/venues.js → venue.bowl), which reuses the approved tier
 // rings and the cited roof figures. Three draw calls carry the whole bowl:
-//   stands  – sloped tier surfaces; seats, people, aisles and vomitories are drawn in the
+//   stands  – sloped tier surfaces; seats, seated silhouettes, aisles and vomitories are drawn in the
 //             fragment shader per seat cell and fade to their mean colour with distance
 //             (the "impostor" LOD: no aliasing, no extra triangles),
 //   struct  – concrete, fascias, concourses, roof steel + membrane, with stage light and AO
@@ -11,6 +11,7 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { bowlPoint } from "../../venues.js";
 import { atmoUniforms, GLSL_ATMO, GLSL_OUT, bakeLight } from "../atmo.js";
+import { silhouetteAtlas } from "../silhouettes.js";
 
 const lcg = (seed) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 const HINT = [0, 30, 0];
@@ -128,7 +129,7 @@ void main(){
 }`;
 const STAND_FS = /* glsl */ `
 ${GLSL_ATMO}
-uniform vec3 uSeatCol0, uSeatCol1, uSeatCol2; uniform vec3 uVom; uniform float uWhite;
+uniform vec3 uSeatCol0, uSeatCol1, uSeatCol2; uniform vec3 uVom; uniform float uWhite; uniform sampler2D uAtlas;
 varying vec2 vUV; varying vec4 vSec; varying float vFacing; varying float vDist; varying vec3 vW;
 void main(){
   if (uSeat.z > 0. && distance(vW.xz, uSeat.xy) < uSeat.z) discard;
@@ -143,13 +144,17 @@ void main(){
   float face = clamp(vFacing*.5+.5, 0., 1.);       // 1 = we look at this stand from the front
   float occP = vSec.y;
   float occ = step(h2, occP);
-  // one person per cell: clothing blob + head; faces catch the stage light, backs stay dark
-  vec2 p = f - .5;
-  float blob = 1. - smoothstep(.22, .5, length(p*vec2(1.,1.1)));
-  float head = 1. - smoothstep(.09, .19, length(p - vec2(0.,.14)));
+  // one seated silhouette per cell, the same cutouts as the near cards (cheap far impostor:
+  // one atlas tap, painted flat on the tier); faces catch the stage light, backs stay dark
+  float var = floor(h*16.);
+  vec2 sp = vec2(mix(.06,.94, h3 > .5 ? f.x : 1.-f.x), mix(.74,.22,f.y));
+  vec2 sg = vec2(.94/8., -.52/4.);
+  float sil = textureGrad(uAtlas, (vec2(mod(var,8.), floor(var/8.)) + sp)/vec2(8.,4.), dFdx(g)*sg, dFdy(g)*sg).r;
+  float blob = smoothstep(.35,.6,sil);
+  float head = blob*smoothstep(.5,.6,f.y)*(1.-smoothstep(.14,.22,abs(f.x-.5)));
   vec3 cloth = mix(vec3(.035,.04,.055), vec3(.62,.58,.56), h*h*h) * vec3(.75+.5*h3, .72+.5*fract(h3*7.), .72+.6*fract(h3*13.));
   vec3 skin = mix(vec3(.025,.02,.02), vec3(.60,.44,.35), face);
-  vec3 person = mix(cloth*(.5+.5*face), skin, head)*blob;
+  vec3 person = mix(cloth*(.5+.5*face), skin, head*face)*blob;
   // empty seat: tip-up seat with a gap to its neighbours
   float sb = step(.07,f.x)*step(f.x,.93)*step(.22,f.y)*step(f.y,.86);
   // Nest: red seats with white ones scattered through them (nest_首场_0003, nest_首场_0004)
@@ -479,7 +484,7 @@ export function ProcBowl({ venue, bowl = "glb" }) {
       buildStands(venue, detail),
       new THREE.ShaderMaterial({
         side: THREE.DoubleSide,
-        uniforms: atmoUniforms({ uSeatCol0: col(0), uSeatCol1: col(1), uSeatCol2: col(2), uWhite: { value: spec.whiteSeats ?? 0 }, uVom: { value: new THREE.Vector3(...spec.tiers.map((t) => Math.round(tierRows(t) * 0.42))) } }),
+        uniforms: atmoUniforms({ uSeatCol0: col(0), uSeatCol1: col(1), uSeatCol2: col(2), uWhite: { value: spec.whiteSeats ?? 0 }, uAtlas: { value: silhouetteAtlas() }, uVom: { value: new THREE.Vector3(...spec.tiers.map((t) => Math.round(tierRows(t) * 0.42))) } }),
         vertexShader: STAND_VS,
         fragmentShader: STAND_FS,
       })
