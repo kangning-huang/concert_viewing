@@ -102,9 +102,24 @@ The 12 `unknown/` photos show the same stage kit in a different stadium (red roo
 
 ## Silhouette atlas: which photos were used
 
-`scripts/bake_silhouettes.py` cuts 16 head-and-shoulder outlines out of the dark foreground audience in 7 photos. Run it with `python3 -I scripts/bake_silhouettes.py`. Output: `public/stage/joker_xue_2026/crowd/silhouettes.webp`, 1024 × 1024, 45 KB, 8 × 4 cells.
+`scripts/bake_silhouettes.py` builds the atlas. Run it with `python3 -I scripts/bake_silhouettes.py`. Output: `public/stage/joker_xue_2026/crowd/silhouettes.webp`, 1024 × 1024, 59 KB, 8 × 4 cells.
 
-| Photo | Outlines taken |
+**Cells 0–7: whole back views traced from two photos** (hair, neck, shoulders, upper back). Added in the gaps pass; they replace the single drawn shoulder template.
+
+| Cell | Photo | Person in the photo | What is traced |
+|---|---|---|---|
+| 0 | `nest/nest_首场_0001.webp` | seated, pink top, long loose hair | hair, shoulders, back down to the seat |
+| 1 | `nest/nest_首场_0001.webp` | seated, white top, low ponytail | head, neck, shoulders, back |
+| 2 | `nest/nest_首场_0001.webp` | seated, long dark hair, puff sleeves | hair, shoulders, back |
+| 3 | `nest/nest_首场_0001.webp` | seated, black top, hair up | head, neck, shoulders, back |
+| 4 | `unknown/unknown_全价位_0006.webp` | high ponytail, T-shirt | head, neck, shoulders, back |
+| 5 | `unknown/unknown_全价位_0006.webp` | clipped-up bun, loose strands | hair, neck, shoulders; far left shoulder runs out of my crop and is estimated |
+| 6 | `unknown/unknown_全价位_0006.webp` | long straight hair down the back | hair and right shoulder; left side hidden by a neighbour, mirrored |
+| 7 | `unknown/unknown_全价位_0006.webp` | short hair, broad shoulders | left half; right half hidden by a neighbour, mirrored |
+
+**Cells 8–23: the 16 thresholded heads from the earlier pass**, each continued below the photo edge with the traced back (cells 0–5, 7) that fits it best.
+
+| Photo | Heads taken |
 |---|---|
 | `nest/nest_山顶_0005.webp` | 2 |
 | `nest/nest_山顶_0006.webp` | 5 |
@@ -114,11 +129,14 @@ The 12 `unknown/` photos show the same stage kit in a different stadium (red roo
 | `nest/nest_917_0005.webp` | 1 |
 | `unknown/unknown_全价位_0007.webp` | 3 |
 
+**Cells 24–31:** eight of the above mirrored, with a raised arm and a phone or light stick drawn on.
+
 What is from the photos and what is not:
 
-- **From the photos:** the outline of each head (crown, hair, ears, neck where it shows). Each is found by thresholding the dark figure against the bright stage behind it.
-- **Drawn, not from the photos:** the photos stop at the bottom edge of the frame, usually at the neck. Shoulders and upper back below that line follow one plain seated-back template that is blended into each photo outline.
-- **Drawn, not from the photos:** cells 16–31 are the same 16 outlines mirrored, with a raised arm and a phone or a light stick added. The pose follows `nest_917_0005` and `nest_山顶_0006`.
+- **From the photos, by threshold:** the 16 head outlines (dark figure against the bright stage).
+- **From the photos, traced by hand:** the 8 back views. These people are lit, not dark against a bright stage, so they cannot be thresholded. Each is a polygon of 12–31 points placed by eye over the photo, about ±4 px. They are small in the photos (40–260 px across), so the outlines are coarse.
+- **Chosen, not measured:** each traced figure is scaled to a shoulder width of 0.42–0.46 m. Below the end of a trace the back runs straight down to the seat with a slight taper.
+- **Drawn, not from the photos:** raised arms, phones and light sticks (pose after `nest_917_0005` and `nest_山顶_0006`).
+- The people in `unknown_全价位_0006` are standing in the photo. Only their outline from the shoulders up is used; in the scene every card sits on a seat.
 - The atlas holds black-and-white masks only. No photo pixels are shipped, so nobody can be recognised.
-- Six more candidate crops were tried and dropped because a neighbour merged into the outline.
-
+- Tried and dropped: `nest_801_0002` (too dark to trace), `nest_801_0001` (heads run out of the frame).

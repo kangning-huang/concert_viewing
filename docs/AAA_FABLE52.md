@@ -315,3 +315,114 @@ In `docs/refs/screenshots/`:
 - **LED content.** Only the red song has a second plate. The split heights are read from two photos; the real show moves the bands more freely.
 - **Lion and eagle are simple.** They have the right pose, colours and big shapes, but no fur or sculpted feather relief, and the lion's face is plainer than the real one. Whale, airship and giant were not remodelled.
 - Mascots fly above the roof instead of standing on their plinths over the lower tier.
+
+# Follow-up 3: gaps pass
+
+Nothing was pushed, published or deployed. Five commits on `aaa-fable52` after `889ee91`. No UI code, camera curve, stage kit dimension or mascot position changed.
+
+**One thing first:** web search was not available in this session, so no new venue source was read. The Nest bowl was corrected from the figures already cited in `docs/refs/BOWL_PARAMS.md` plus measurements on the photos. Those numbers are marked `DERIVED` there, not `CITED`.
+
+## What changed
+
+### 1. Backs, shoulders and hair (crowd atlas)
+- The single drawn shoulder template is gone. Eight back views are traced by hand from two photos: four seated people in `nest_首场_0001`, four in `unknown_全价位_0006`. They cover long loose hair, low and high ponytails, hair up, a bun, a hair curtain and short hair with broad shoulders.
+- The 16 photo heads from the last pass now continue into whichever traced back fits them best.
+- 24 plain outlines (was 16) and 8 with a phone or stick (was 16, half of them mirrored copies).
+- The table of which photo each outline came from is in `docs/XHS_STAGE_MATCH.md`.
+
+### 2. Lion and eagle relief
+- **Lion** (`nest_首场_0002`): 15 mane locks are real geometry. The chest gets the dark bib from the photo. The body has mottled printed fur. Fine strands come from a normal map.
+- **Eagle** (`nest_首场_0003`): 7 finger-like primaries run along each wing as ribs. Legs are slate. Body and wing coverts get scalloped feather rows from a normal map.
+- The two normal maps are 64 × 64 and generated in code at start-up. Nothing is downloaded.
+- Vertices: mane 974 → 2503, each wing 614 → 1769. Still one draw call per animal.
+
+### 3. Bird's Nest bowl
+- **Top-row eye height 71.7 m → 46.2 m.** This is 129.90 m × tan 19°35′, both from the stand designer's paper. Photo `nest_山顶_0005` independently measures 41–43 m a few rows down.
+- **Tiers** are now 2–13.5 m, 14.5–27 m and 30.5–44.5 m (were 2–27, 26–45, 45–70). The split follows `nest_首场_0002`, including the box level between middle and upper tier.
+- **Roof top 81 m → 68.5 m** (the cited maximum). **The ceiling now slopes**, from 39 m at the opening edge (measured on `nest_山顶_0005`) up over the stands. The concrete bowl ends at the cited 51.1 m.
+- The plan rings did not move, so the 2D map, seat distances and angles on the seat sheet are the same.
+- Method, numbers and what is still open: `docs/refs/BOWL_PARAMS.md`, section "Nest heights used in the model".
+- Wuxi was not touched. Its Damai hotspots were re-checked by the smoke test: C3, D3, 224, 409 (¥717 band) and 409 (¥917 band) all open the right section and price.
+
+### 4. Rim light
+- The rim now depends on distance. The nearest rows get none and read as plain dark shapes. It comes in softly between 2.4 m and 8 m and fades out by 20 m.
+- The band is wider and fainter, so it reads as a glow and not a line.
+
+### 5. GPU-side cost
+- New probe: `node scripts/overdraw.mjs <dist> <label>`. It uses a review-only URL mode (`?overdraw=<layer>`) that counts rasterised fragments per screen pixel, and GPU timer queries on the normal render. Viewport 390 × 844 at device pixel ratio 3, medium tier (the app renders 487 × 1055 there).
+- **Finding:** cards and the see-through LED wall were not the main cost. The haze sprites were: about 5 full-screen additive layers from a floor seat.
+- **Haze:** 32 sprites → 16 at twice the opacity. Same light in the air, half the fill, 16 fewer draw calls.
+- **Cards:** plain cards are trimmed to the part of the atlas cell that holds the outline. The rim's second texture read is skipped where there is no rim.
+- **LED wall and beams:** measured, small (0.03–0.35 and 0.3–0.6 fragments per pixel), left alone.
+
+## Results
+
+Overdraw, fragments per screen pixel, medium tier (`docs/perf/overdraw_gaps_before_medium.json`, `overdraw_gaps_after_medium.json`). This count depends on the scene only, not on the GPU. It is an upper bound: it ignores the depth test.
+
+| View | All layers, before | All layers, after | Cards, before | Cards, after |
+|---|---|---|---|---|
+| Nest floor A1 | 13.5 | 8.7 | 1.46 | 1.11 |
+| Nest floor D3 | 14.0 | 9.0 | 1.05 | 0.77 |
+| Wuxi floor D3 | 7.7 | 5.3 | 1.38 | 1.00 |
+| Wuxi floor C3 | 12.4 | 8.3 | 1.79 | 1.34 |
+| Wuxi 409 | 9.0 | 7.9 | 1.57 | 1.12 |
+| Nest 602 (top tier) | 4.5 | 8.9 | 0.04 | 0.95 |
+
+Nest 602 is not a like-for-like row: the seat is 26 m lower now and looks across at the stage and its haze instead of down on it.
+
+GPU time per frame from timer queries, **on an Apple M1, not a phone**: 2.4–2.9 ms median before, 2.4–2.7 ms after. That is no measurable change. The M1 is not fill-limited at this size, so this says nothing about a phone either way.
+
+Frame times, same method as before (`smoke_gaps_final.json`, `smoke_gaps_final_medium_cpu4.json`). All 8 cases pass on both runs.
+
+| | Last pass | Now |
+|---|---|---|
+| High: fly-in median | 3.0–3.3 ms | 3.0–3.2 ms |
+| High: fly-in worst frame | 10.4–16.9 ms | 10.0–17.2 ms |
+| High: pan worst frame | 5.1–8.0 ms | 5.0–6.6 ms |
+| High: cue switch worst frame | 6.5–8.7 ms | 5.9–7.2 ms |
+| Medium, 4× CPU: fly-in median | 2.8–3.5 ms | 3.3–4.0 ms |
+| Medium, 4× CPU: fly-in worst frame | 19.8–22.6 ms | 20.0–22.9 ms |
+| Medium, 4× CPU: pan worst frame | 5.6–13.4 ms | 6.3–15.5 ms |
+| Medium, 4× CPU: cue switch worst frame | 11.2–18.3 ms | 9.8–15.8 ms |
+| Frames over 33 ms | 0 | 0 |
+
+Sizes (`scripts/transfer.mjs`, 390 × 844):
+
+| | Last pass | Now |
+|---|---|---|
+| First 3D frame, Wuxi | 1267 KB | 1284 KB |
+| First 3D frame, Nest | 1006 KB | 1023 KB |
+| Whole `dist`, wire | 2307 KB | 2324 KB |
+| JS bundle, gzip | 327 KB | 328 KB |
+
+The crowd atlas grew from 45 KB to 59 KB.
+
+## Checks run on the final build
+
+- `npm run build`: passes.
+- `npm run raycheck`: PASS, 0 hits, 0 footprint overlaps, 0 fly-path hits, Wuxi and Nest, six mascots.
+- `node scripts/smoke.mjs dist gaps_final`: 8 of 8 pass. Medium tier with 4× CPU throttle: 8 of 8 pass.
+
+## Screenshots
+
+In `docs/refs/screenshots/`:
+
+- Seat views with the UI: `aaa_gaps_pov_wuxi_D3`, `aaa_gaps_pov_wuxi_C3`, `aaa_gaps_pov_wuxi_409`, `aaa_gaps_pov_nest_D3`, `aaa_gaps_pov_nest_floor_A1`. Extra: `aaa_gaps_pov_nest_636`, `aaa_gaps_map_wuxi`, `aaa_gaps_map_nest`.
+- Mascots: `aaa_gaps_hero_lion`, `aaa_gaps_hero_eagle`.
+- Side by side: `aaa_gaps_compare_nest_top_red`. Left is `nest_山顶_0005`. Right is Nest 602 on the red song, cropped to the photo's field of view (about 51°).
+- Near heads without the UI: `aaa_gaps_hero_nest_floor_red`.
+
+## Still not fixed
+
+- **No real phone was tested.** The overdraw count is device-independent, but how many milliseconds it buys on a phone is unknown.
+- **No new venue research.** Web search was not available. Tier heights, the tier split and the ceiling height are derived, not published figures. They could be off by a few metres.
+- **Nest plan is unverified and partly wrong.** End seats sit up to 142 m from the centre, beyond the cited 129.90 m. The real front row follows the running track and is more elongated. The model's outer roof plan (174 × 145 m half-axes) does not match the cited 166 × 148 m.
+- **Nest roof saddle is not modelled.** The top is 68.5 m all round. The cited 40.1 m low points are missing because no source read says where they are.
+- **The middle tier does not overhang the lower tier**, as it does in the real stadium.
+- **Wuxi bowl heights were not reviewed.** Its top row is at 57 m, while the only cited building height is 50 m (unclear what that measures).
+- **The side-by-side still differs.** Layout and steepness now agree. The model's ceiling is plain (no panel texture or lamps), its IMAG screens look larger, and the stage sits a little lower in the frame.
+- **Traced outlines are coarse.** The people are 40–260 px across in the photos and traced by eye. Two of the eight are half-mirrored because a neighbour hides one side. Raised arms, phones and sticks are still drawn.
+- **Near heads still have a hard cut edge.** The rim is gone, but the photos show soft, out-of-focus heads. Alpha-tested cards cannot blur.
+- **Mascots.** The lion's face is still plain and the mane locks are regular. The eagle's primaries are ribs on one surface, not separate feathers with gaps. Under strongly coloured cues the relief is hard to see. Elephant, whale, airship and giant were not touched.
+- **Truss lattices** (alpha-tested, lit) are the next largest overdraw layer after haze: about 4 fragments per pixel from a floor seat. Not reduced.
+- Cards are flat boards, the eye height is still 1.65 m above the step, and mascots still fly above the roof. These are unchanged from the last pass.
