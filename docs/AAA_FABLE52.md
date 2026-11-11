@@ -115,3 +115,104 @@ Review any angle with `?cam=x,y,z,tx,ty,tz` (no UI). Add `&cue=red` and so on.
 - **Start-up cost was not measured.** The bowl is generated and shaders compile during the first frames, behind the map.
 - The phone pixel-ratio cap moved from 1.25 to 1.5 on the high tier. If a high-tier phone runs hot, set it back in `dprRange` in `StageCanvas.jsx`.
 - `@react-three/drei` is still in `package.json` but is no longer imported.
+
+---
+
+# Follow-up: rebuilt from the Xiaohongshu photos
+
+Nothing was published or deployed. Only `aaa-fable52` was pushed.
+
+All 150 photos in `assets/refs/xhs/` were viewed and grouped. The checklist with photo evidence is in `docs/XHS_STAGE_MATCH.md`. The first pass got the stage proportions wrong: the photos show a shorter, deeper LED volume, six towers, an open truss roof, a runway ring, and IMAG screens out at the field corners.
+
+## Which photos drove which change
+
+| 3D change | File | Photos |
+|---|---|---|
+| LED volume resized to 40 × 22 × 14.4 m (was 45 × 16 × 13), flown under the roof | `src/stage/kit.js` | `nest_首场_0001`, `nest_526_0004`, `nest_226_0001` |
+| Six truss towers inside the LED volume (was four columns) | `JokerXueStage.jsx` | `nest_大对角_0006`, `nest_大对角_0003` |
+| Roof is an open truss grid 52 × 34 m with a deep rim (was a solid slab 60 × 27 m) | `RoofCanopy` | `nest_526_0004`, `nest_首场_0001`, `nest_731_0003` |
+| Rim: one row of blinders between two strip lines; rainbow on the confetti cue | `RoofCanopy`, `Bulbs` | `nest_大对角_0006`, `nest_226_0005`, `nest_917_0005` |
+| Runway ring with rounded corners around a smaller deck, bridges, edge blinders (was one flat 57 × 36 m deck) | `DeckAndRunway` | `nest_526_0001`, `nest_526_0004`, `nest_首场_0001` |
+| Lit floor tiles on the deck | `DECK_FS` | `nest_皇帝位_0010`, `nest_718_0006` |
+| Reed belt on all four sides with speaker cubes (was one side) | `Reeds` | `nest_526_0001`, `nest_526_0004` |
+| IMAG towers moved out to the field corners (±40, ±24), deep scaffold, screen on both faces | `ScreenTower`, `kit.js` | `nest_山顶_0005`, `nest_526_0001`, `nest_718_0001`, `nest_537_0012` |
+| PA line arrays hang in front of the LED faces (were at the roof corners) | `PaHangs` | `nest_526_0004`, `nest_大对角_0006` |
+| LED faces: lit bezel, 1.0 × 0.5 m cabinets; title card on all four faces before the show; real captures per cue | `LED_FS`, `useLedTextures` | `nest_537_0006`, `nest_526_0004`, `nest_917_0001`, `nest_226_0011` |
+| About 130 narrow beams in one draw call: roof sunburst, rim curtain, runway up-lights, thin lasers (were 43 fat cones) | `Beams` | `nest_517_0004`, `nest_226_0002`, `nest_226_0006`, `nest_山顶_0005`, `nest_537_0008` |
+| Cue colours resampled; blinders get their own colour | `CUES` | `nest_526_0001`, `nest_226_0005`, `nest_山顶_0005`, `nest_517_0004` |
+| Elephant, whale, airship, giant: new shapes and paint | mascot components | `nest_首场_0004`, `nest_皇帝位_0006`, `nest_731_0005`, `nest_大对角_0005`, `unknown_全价位_0001` |
+| Nest seats: red with white seats mixed in, all tiers (were red / purple / blue) | `venues.js`, `STAND_FS` | `nest_首场_0002`–`0004`, `nest_526_0005` |
+| Nest ceiling: pale membrane with thin seams that takes the show colour and gobos (was exposed steel trusses) | `ProcBowl.jsx` | `nest_山顶_0005`, `nest_718_0008`, `nest_517_0011` |
+| Follow-spot trusses and delay PA hung under the Nest roof opening | `ProcBowl.jsx` | `nest_首场_0001`, `nest_718_0009`, `nest_526_0002` |
+| Light sticks: most fans hold one, warm white with a cue tint | `STAND_FS` | `nest_大对角_0003`, `nest_大对角_0006` |
+
+Wuxi: no Wuxi photos exist, so the bowl look is unchanged. It gets the shared stage kit and the light-stick change. The 12 `unknown_全价位_*` photos show this stage in another stadium and agree with the kit.
+
+## What stayed the same
+
+- Camera curves (1.6 s in, 1.25 s out), Damai map, seat picking, `/wuxi/`, `/beijing/`, `?venue=`, `?quality=`. No UI code changed.
+- Mascot positions. They stay above the stage roof. `npm run raycheck`: PASS, 0 hits, Wuxi and Nest. The ray check now reads its targets from `src/stage/kit.js`, and it tests both faces of each IMAG tower.
+- Tier rings, heights and rake in both bowls.
+
+## Sizes (after this pass)
+
+Same method as above (`scripts/transfer.mjs`, 390 × 844).
+
+| | First AAA pass | Now |
+|---|---|---|
+| First 3D frame, Wuxi | 1358 KB | 1198 KB |
+| First 3D frame, Nest | 1097 KB | 937 KB |
+| Whole `dist`, wire | 2394 KB | 2189 KB |
+| Whole `dist`, raw | 3183 KB | 2985 KB |
+| JS bundle, gzip | 316 KB | 320 KB |
+
+One cue plate (`led_feed_red.jpg`) is no longer shipped; the red cue now uses the real red captures. Budget is 5 MB first frame and 15 MB total.
+
+## Frame times (after this pass)
+
+Same method as above. Apple M1, headless Chrome, vsync off, 390 × 844. All 8 cases pass on both runs. Files: `docs/perf/smoke_xhs_final.json`, `docs/perf/smoke_xhs_final_medium_cpu4.json`.
+
+| High tier | First AAA pass | Now |
+|---|---|---|
+| Fly-in median | 3.0–3.6 ms | 3.0–3.5 ms |
+| Fly-in worst frame | 10.2–15.6 ms | 9.8–14.6 ms |
+| Pan worst frame | 5.5–6.9 ms | 5.8–9.5 ms |
+| Cue switch worst frame | 5.6–8.1 ms | 7.5–9.9 ms |
+| Frames over 33 ms | 0 | 0 |
+
+| Medium tier, 4× CPU throttle | First AAA pass | Now |
+|---|---|---|
+| Fly-in median | 3.4–4.3 ms | 2.8–3.6 ms |
+| Fly-in worst frame | 20.7–24.9 ms | 19.4–22.0 ms |
+| Pan worst frame | 6.4–17.1 ms | 6.0–18.2 ms |
+| Cue switch worst frame | 12.7–22.1 ms | 11.5–13.1 ms |
+| Frames over 33 ms | 0 | 0 |
+
+These are frame times on a Mac, well under the 16.7 ms that 60 fps needs. **No real phone was tested**, so 60 fps on a phone is still not proven.
+
+## Checks run on the final build
+
+- `npm run build`: passes.
+- `npm run raycheck`: PASS, 0 hits, both venues.
+- `node scripts/smoke.mjs dist xhs_final`: 8 of 8 pass. Medium tier with 4× CPU throttle: 8 of 8 pass.
+
+## New screenshots
+
+In `docs/refs/screenshots/`:
+
+- `aaa_xhs_pov_wuxi_floor_D3`, `aaa_xhs_pov_wuxi_floor_C3`, `aaa_xhs_pov_wuxi_bowl_409`, `aaa_xhs_pov_nest_floor_D3` (the four asked for)
+- `aaa_xhs_hero_nest`, `aaa_xhs_hero_nest_red`, `aaa_xhs_hero_wuxi`
+- Extra from the smoke run: `aaa_xhs_pov_nest_floor_A1`, `aaa_xhs_pov_nest_bowl_636`, `aaa_xhs_pov_wuxi_bowl_224`, `aaa_xhs_pov_wuxi_band_409a`, `aaa_xhs_map_nest`, `aaa_xhs_map_wuxi`
+
+Good pairs to compare: `aaa_xhs_hero_nest_red` with `nest_山顶_0005`; `aaa_xhs_hero_wuxi` with `unknown_全价位_0010`; `aaa_xhs_hero_nest` with `nest_226_0001`.
+
+## Still not matched
+
+- It is closer to the photos in layout, proportion and colour, but it is still not a photo. People are simple shapes. Mascots are built from spheres and tubes.
+- The LED volume does not split into two bands (`nest_大对角_0003`) and is not see-through (`nest_226_0008`).
+- Mascots float above the roof. In the Nest they stand on plinths over lower-tier seats, which the keep-out rule forbids. The lion and eagle are not modelled.
+- Floor blocks show standing people. The photos show seated blocks.
+- Stage sizes are read from photo ratios against the 57 × 36 m seat-map footprint. No drawing with metres was found.
+- Nest roof height, tier heights and rake are unchanged and still unverified (`BOWL_PARAMS.md`).
+- Views from behind an IMAG tower are partly blocked by it, as in the real show (`nest_317_0001`). The ray check only tests mascots.
+- The "Known gaps" list above still applies where this section does not replace it.
