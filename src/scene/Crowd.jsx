@@ -39,13 +39,14 @@ const instMaterial = () => new THREE.ShaderMaterial({ uniforms: atmoUniforms(), 
 // ---- silhouette cutout boards -----------------------------------------------------------------
 // One card = one seated fan. The card turns about its vertical axis to face the camera (and
 // tips over when seen from above, so the fly-in from the map never sees it edge-on). Backs are
-// near-black with a rim of show light around the outline, like the heads in the seat-view
-// photos (nest_山顶_0005, nest_山顶_0006); seen from the stage side they take the wash colour.
+// near-black, like the heads in the seat-view photos (nest_山顶_0005, nest_山顶_0006): the nearest
+// rows are plain dark shapes, a few rows further on a soft rim of show light picks out heads
+// and shoulders, and far away it is gone again. Seen from the stage side they take the wash.
 const CARD_VS = /* glsl */ `
 ${GLSL_ATMO}
 attribute vec3 aPos; attribute vec4 aInfo;   // aInfo = variant, size, seed, lean (rad)
 uniform float uFoot;
-varying vec2 vUv; varying vec2 vQ; varying vec3 vTint; varying float vDist; varying float vFront; varying float vAtt; varying float vSeed;
+varying vec2 vUv; varying vec2 vQ; varying vec3 vTint; varying float vDist; varying float vFront; varying float vAtt; varying float vSeed; varying float vRim;
 void main(){
   vec3 toCam = cameraPosition - aPos; float dc = max(length(toCam), 1e-3); vec3 n = toCam/dc;
   vec2 rxz = normalize(vec2(n.z, -n.x) + vec2(1e-5, 0.));
@@ -53,14 +54,19 @@ void main(){
   vec3 up = normalize(mix(vec3(0.,1.,0.), cross(n, right), smoothstep(.55,.95,n.y)));
   float seed = aInfo.z;
   float lean = aInfo.w + .022*sin(uT*(1.1+seed) + seed*50.);
-  float y = position.y >= 0. ? position.y*${SIL.h.toFixed(2)} : position.y*uFoot;
-  vec2 q = vec2(position.x*${SIL.w.toFixed(2)}, y)*aInfo.y;
+  // Overdraw: a plain outline fills only the middle of its atlas cell (nothing above the head,
+  // nothing beside the shoulders), so its quad is trimmed to that part. Only the cells with a
+  // raised phone or stick need the whole cell. 38 % fewer alpha-tested fragments per plain card.
+  vec2 trim = aInfo.x < ${SIL.plain}. ? vec2(${SIL.trimX}, ${SIL.trimY}) : vec2(1.);
+  vec2 p = vec2(position.x*trim.x, position.y > 0. ? position.y*trim.y : position.y);
+  float y = p.y >= 0. ? p.y*${SIL.h.toFixed(2)} : p.y*uFoot;
+  vec2 q = vec2(p.x*${SIL.w.toFixed(2)}, y)*aInfo.y;
   q = vec2(q.x*cos(lean) - q.y*sin(lean), q.x*sin(lean) + q.y*cos(lean));
   vec3 wp = aPos + right*q.x + up*q.y;
   float var = aInfo.x; vec2 cell = vec2(mod(var, ${SIL.cols}.), floor(var/${SIL.cols}.));
-  float u = position.x + .5; if (fract(seed*7.31) > .5) u = 1. - u;
-  vUv = (cell + vec2(clamp(u,.02,.98), 1. - clamp(position.y, 0., .995)))/vec2(${SIL.cols}., ${SIL.rows}.);
-  vQ = position.xy; vSeed = seed;
+  float u = p.x + .5; if (fract(seed*7.31) > .5) u = 1. - u;
+  vUv = (cell + vec2(clamp(u,.02,.98), 1. - clamp(p.y, 0., .995)))/vec2(${SIL.cols}., ${SIL.rows}.);
+  vQ = p; vSeed = seed;
   // clothes: mostly dark, some pale tops (the floor blocks read pale in nest_917_0005)
   float h = fract(seed*13.7), h2 = fract(seed*91.3);
   vTint = mix(vec3(.05,.055,.07), vec3(.62,.6,.6), h*h*h)*vec3(.8+.4*h2, .78+.4*fract(h2*7.), .78+.5*fract(h2*13.));
@@ -68,12 +74,16 @@ void main(){
   vAtt = 1./(1.+pow(d/80.,2.));
   vFront = smoothstep(-.35,.35, dot(normalize(toCam.xz + 1e-4), normalize(-aPos.xz + 1e-4)));
   vec4 mv = viewMatrix*vec4(wp,1.); vDist = length(mv.xyz);
+  // Rim light by distance. A head that fills the screen (the row or two in front) gets none:
+  // there a rim is a drawn outline, and the photos show plain dark out-of-focus shapes. It
+  // comes in over the next rows (2.4 to 8 m) and fades again where a card is only a few pixels.
+  vRim = .7*smoothstep(2.4, 8., dc)*(1. - smoothstep(9., 20., dc))*vAtt*mix(1., .3, vFront);
   gl_Position = projectionMatrix*mv;
 }`;
 const CARD_FS = /* glsl */ `
 ${GLSL_ATMO}
 uniform sampler2D uAtlas;
-varying vec2 vUv; varying vec2 vQ; varying vec3 vTint; varying float vDist; varying float vFront; varying float vAtt; varying float vSeed;
+varying vec2 vUv; varying vec2 vQ; varying vec3 vTint; varying float vDist; varying float vFront; varying float vAtt; varying float vSeed; varying float vRim;
 void main(){
   vec3 amb = vec3(.030,.034,.048) + uCue*.03;
   vec3 c;
@@ -84,17 +94,20 @@ void main(){
   } else {
     vec4 t = texture2D(uAtlas, vUv);
     if (max(t.r, t.g) < .5) discard;
-    // rim light: the band just inside the cut edge, read from a blurrier mip
-    float soft = texture2D(uAtlas, vUv, 1.6).r;
-    // only the head and shoulders catch it, and it fades out with distance
-    float rim = (1. - smoothstep(.5,.8,soft))*smoothstep(.3,.5,vQ.y)*(1. - smoothstep(4.,16.,vDist));
+    // rim light: a soft band inside the cut edge, read from a blurrier mip (a glow, not a
+    // line). Head and shoulders only. The second texture read is skipped where there is no rim.
+    float rim = 0.;
+    if (vRim > .004) {
+      float soft = texture2D(uAtlas, vUv, 2.2).r;
+      rim = (1. - smoothstep(.5,.95,soft))*smoothstep(.3,.5,vQ.y)*vRim;
+    }
     vec3 back = vTint*amb*.22 + amb*.012;   // backs are near-black whatever the clothes
     vec3 front = vTint*(amb + uCue*vAtt*2.1 + vAtt*.3);
     // hair stays dark, the face catches the stage when seen from the front
     float head = smoothstep(.5,.56,vQ.y)*(1. - smoothstep(.13,.19,abs(vQ.x)));
     front = mix(front, vec3(.58,.42,.34)*(amb + uCue*vAtt*2.1 + vAtt*.3), head*.85);
     c = mix(back, front, vFront);
-    c += rim*(uCue*.5 + vec3(.04))*vAtt*mix(1., .3, vFront);
+    c += rim*(uCue*.5 + vec3(.04));
     // phone screens are white-blue, light sticks warm white with a cue tint; both bloom
     float tw = .55 + .45*pow(.5 + .5*sin(uT*(1. + vSeed*3.) + vSeed*40.), 2.);
     vec3 glow = mix(uEdge, vec3(1.,.93,.88), .45)*2.1*tw;
