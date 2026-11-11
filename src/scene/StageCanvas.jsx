@@ -10,6 +10,7 @@ import { silhouetteAtlas } from "./silhouettes.js";
 import { CameraRig } from "./CameraRig.jsx";
 import { JokerXueStage, CUES } from "../stage/JokerXueStage.jsx";
 import { TIERS, initialQuality, stepDown, fpsMonitor } from "../quality.js";
+import { OVERDRAW, applyOverdraw } from "./overdraw.js";
 
 function Barriers({ bars }) {
   return bars.map(([x, z, w, d], i) => (
@@ -87,6 +88,13 @@ function CrowdAtlas() {
   return null;
 }
 
+// ?overdraw review mode: keep re-applying, objects mount over the first frames
+function OverdrawMode() {
+  const scene = useThree((st) => st.scene), gl = useThree((st) => st.gl);
+  useFrame(() => (gl.setClearColor(0, 1), applyOverdraw(scene)));
+  return null;
+}
+
 function QualityWatch({ onDrop }) {
   const mon = useMemo(() => fpsMonitor(), []);
   useFrame((_, dt) => {
@@ -134,7 +142,7 @@ export function StageCanvas({ venue, phase, section, cue, onArrived, onReturned 
   const glOpts = useMemo(() => ({ antialias: q.msaa > 0, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.9 }), [q.msaa]);
   return (
     <Canvas className="stage-canvas" dpr={dpr} gl={glOpts} camera={{ position: [0, 300, 0.01], near: 0.15, far: 1600 }} onCreated={exposeForRaycheck}>
-      <color attach="background" args={["#04050b"]} />
+      {!OVERDRAW && <color attach="background" args={["#04050b"]} />}
       <hemisphereLight args={["#6f7f9e", "#141018", 0.75]} />
       <directionalLight position={[60, 150, 40]} intensity={0.45} color="#9fb2d6" />
       <Atmosphere cue={cue} />
@@ -146,7 +154,7 @@ export function StageCanvas({ venue, phase, section, cue, onArrived, onReturned 
       <Barriers bars={venue.barriers} />
       <SeatMarker section={section} visible={phase === "flyin" || phase === "flyout"} />
       <CameraRig phase={phase} section={section} onArrived={onArrived} onReturned={onReturned} lookEnabled={phase === "pov"} />
-      <Post tier={tier} />
+      {OVERDRAW ? <OverdrawMode /> : <Post tier={tier} />}
       <CrowdAtlas />
       <Warmup />
       {adaptive && <QualityWatch onDrop={onDrop} />}

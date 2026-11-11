@@ -1,0 +1,286 @@
+{
+ "label": "gaps_before_medium",
+ "quality": "medium",
+ "cpuThrottle": 1,
+ "viewport": "390x844 @3 (app caps render scale per tier)",
+ "at": "2026-11-11T12:47:37.457Z",
+ "note": "overdraw.perPixel = rasterised fragments per screen pixel for that layer (no depth test, no discard). GPU times are from this Mac, not a phone.",
+ "results": [
+  {
+   "view": "nest_A1",
+   "overdraw": {
+    "all": {
+     "perPixel": 13.451,
+     "max": 54,
+     "saturated": 0
+    },
+    "silhouettes": {
+     "perPixel": 1.464,
+     "max": 28,
+     "saturated": 0
+    },
+    "led-volume": {
+     "perPixel": 0.309,
+     "max": 10,
+     "saturated": 0
+    },
+    "beams": {
+     "perPixel": 0.485,
+     "max": 9,
+     "saturated": 0
+    },
+    "bowl": {
+     "perPixel": 0.434,
+     "max": 9,
+     "saturated": 0
+    }
+   },
+   "timerQuery": true,
+   "gpuMs": {
+    "n": 1879,
+    "median": 2.91,
+    "p95": 3.49
+   },
+   "frameMs": {
+    "n": 1926,
+    "median": 2.8,
+    "p95": 3.9
+   },
+   "buffer": [
+    487,
+    1055
+   ],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "view": "nest_D3",
+   "overdraw": {
+    "all": {
+     "perPixel": 13.988,
+     "max": 51,
+     "saturated": 0
+    },
+    "silhouettes": {
+     "perPixel": 1.052,
+     "max": 21,
+     "saturated": 0
+    },
+    "led-volume": {
+     "perPixel": 0.322,
+     "max": 9,
+     "saturated": 0
+    },
+    "beams": {
+     "perPixel": 0.295,
+     "max": 5,
+     "saturated": 0
+    },
+    "bowl": {
+     "perPixel": 0.427,
+     "max": 9,
+     "saturated": 0
+    }
+   },
+   "timerQuery": true,
+   "gpuMs": {
+    "n": 1878,
+    "median": 2.83,
+    "p95": 3.45
+   },
+   "frameMs": {
+    "n": 1922,
+    "median": 2.3,
+    "p95": 3.9
+   },
+   "buffer": [
+    487,
+    1055
+   ],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "view": "nest_602",
+   "overdraw": {
+    "all": {
+     "perPixel": 4.507,
+     "max": 35,
+     "saturated": 0
+    },
+    "silhouettes": {
+     "perPixel": 0.038,
+     "max": 9,
+     "saturated": 0
+    },
+    "led-volume": {
+     "perPixel": 0.028,
+     "max": 8,
+     "saturated": 0
+    },
+    "beams": {
+     "perPixel": 0.309,
+     "max": 7,
+     "saturated": 0
+    },
+    "bowl": {
+     "perPixel": 1.712,
+     "max": 13,
+     "saturated": 0
+    }
+   },
+   "timerQuery": true,
+   "gpuMs": {
+    "n": 1842,
+    "median": 2.38,
+    "p95": 3.08
+   },
+   "frameMs": {
+    "n": 1882,
+    "median": 2,
+    "p95": 3.9
+   },
+   "buffer": [
+    487,
+    1055
+   ],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "view": "wuxi_D3",
+   "overdraw": {
+    "all": {
+     "perPixel": 7.719,
+     "max": 64,
+     "saturated": 0.0005
+    },
+    "silhouettes": {
+     "perPixel": 1.376,
+     "max": 57,
+     "saturated": 0
+    },
+    "led-volume": {
+     "perPixel": 0.113,
+     "max": 10,
+     "saturated": 0
+    },
+    "beams": {
+     "perPixel": 0.526,
+     "max": 10,
+     "saturated": 0
+    },
+    "bowl": {
+     "perPixel": 0.337,
+     "max": 5,
+     "saturated": 0
+    }
+   },
+   "timerQuery": true,
+   "gpuMs": {
+    "n": 1922,
+    "median": 2.47,
+    "p95": 3.08
+   },
+   "frameMs": {
+    "n": 1964,
+    "median": 2.3,
+    "p95": 3.8
+   },
+   "buffer": [
+    487,
+    1055
+   ],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "view": "wuxi_C3",
+   "overdraw": {
+    "all": {
+     "perPixel": 12.357,
+     "max": 64,
+     "saturated": 0.0001
+    },
+    "silhouettes": {
+     "perPixel": 1.788,
+     "max": 41,
+     "saturated": 0
+    },
+    "led-volume": {
+     "perPixel": 0.35,
+     "max": 9,
+     "saturated": 0
+    },
+    "beams": {
+     "perPixel": 0.632,
+     "max": 6,
+     "saturated": 0
+    },
+    "bowl": {
+     "perPixel": 0.397,
+     "max": 6,
+     "saturated": 0
+    }
+   },
+   "timerQuery": true,
+   "gpuMs": {
+    "n": 1931,
+    "median": 2.74,
+    "p95": 3.34
+   },
+   "frameMs": {
+    "n": 1976,
+    "median": 2.2,
+    "p95": 3.7
+   },
+   "buffer": [
+    487,
+    1055
+   ],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "view": "wuxi_409g",
+   "overdraw": {
+    "all": {
+     "perPixel": 9.041,
+     "max": 36,
+     "saturated": 0
+    },
+    "silhouettes": {
+     "perPixel": 1.565,
+     "max": 18,
+     "saturated": 0
+    },
+    "led-volume": {
+     "perPixel": 0.043,
+     "max": 9,
+     "saturated": 0
+    },
+    "beams": {
+     "perPixel": 0.326,
+     "max": 6,
+     "saturated": 0
+    },
+    "bowl": {
+     "perPixel": 0.809,
+     "max": 6,
+     "saturated": 0
+    }
+   },
+   "timerQuery": true,
+   "gpuMs": {
+    "n": 1912,
+    "median": 2.48,
+    "p95": 3.04
+   },
+   "frameMs": {
+    "n": 1952,
+    "median": 2.2,
+    "p95": 3.9
+   },
+   "buffer": [
+    487,
+    1055
+   ],
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  }
+ ]
+}

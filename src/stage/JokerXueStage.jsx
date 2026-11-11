@@ -514,6 +514,7 @@ function Beams({ fx = 1 }) {
     ig.instanceCount = n;
     const mat = new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, uniforms: { uC0: FX.beam, uC1: FX.laser, uC2: FX.white, uT: ATMO.uT }, vertexShader: BEAM_VS, fragmentShader: BEAM_FS });
     const m = new THREE.Mesh(ig, mat);
+    m.name = "beams";
     m.frustumCulled = false;
     m.renderOrder = 5;
     return m;
@@ -567,18 +568,23 @@ function Confetti({ count = 7000, active }) {
 
 // Heavy show haze: big soft puffs in the air that take the wash colour, plus low smoke
 // rolling off the runway (nest_226_0002, nest_517_0007, nest_山顶_0006).
+// Overdraw: these sprites are the largest fill cost in the scene (scripts/overdraw.mjs: about
+// five full-screen additive layers from a floor seat with 32 sprites). Half as many sprites at
+// twice the opacity put the same light into the air for half the fill and 16 fewer draw calls.
+const HAZE_LIGHT = 18 * 0.045, SMOKE_LIGHT = 14 * 0.06;
 function Haze({ fx = 1 }) {
   const map = useMemo(glowTex, []);
-  const mat = useMemo(() => new THREE.SpriteMaterial({ map, transparent: true, opacity: 0.045, depthWrite: false, blending: THREE.AdditiveBlending }), [map]);
-  const low = useMemo(() => new THREE.SpriteMaterial({ map, transparent: true, opacity: 0.06, depthWrite: false, blending: THREE.AdditiveBlending }), [map]);
+  const nPuff = fx >= 1 ? 9 : 5, nLow = fx >= 1 ? 7 : 4;
+  const mat = useMemo(() => new THREE.SpriteMaterial({ map, transparent: true, opacity: HAZE_LIGHT / nPuff, depthWrite: false, blending: THREE.AdditiveBlending }), [map, nPuff]);
+  const low = useMemo(() => new THREE.SpriteMaterial({ map, transparent: true, opacity: SMOKE_LIGHT / nLow, depthWrite: false, blending: THREE.AdditiveBlending }), [map, nLow]);
   const puffs = useMemo(() => {
-    const r = lcg(5), n = fx >= 1 ? 18 : 8;
+    const r = lcg(5), n = nPuff;
     return [...Array(n).keys()].map(() => ({ p: [(r() * 2 - 1) * 46, 5 + r() * 30, (r() * 2 - 1) * 32], s: 28 + r() * 30 }));
-  }, [fx]);
+  }, [nPuff]);
   const ground = useMemo(() => {
-    const r = lcg(9), n = fx >= 1 ? 14 : 6;
+    const r = lcg(9), n = nLow;
     return [...Array(n).keys()].map((i) => ({ p: [Math.cos((i / n) * 6.283) * 30 + (r() - 0.5) * 8, 2.6 + r() * 2.5, Math.sin((i / n) * 6.283) * 19 + (r() - 0.5) * 6], s: [26 + r() * 16, 7 + r() * 5] }));
-  }, [fx]);
+  }, [nLow]);
   useFrame(() => {
     mat.color.copy(ATMO.uCue.value).lerp(fxTmp.set("#ffffff"), 0.15);
     low.color.copy(ATMO.uCue.value).lerp(fxTmp.set("#ffffff"), 0.45);
