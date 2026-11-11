@@ -11,7 +11,7 @@ import { useMemo } from "react";
 import * as THREE from "three";
 import { bowlPoint } from "../../venues.js";
 import { atmoUniforms, GLSL_ATMO, GLSL_OUT, bakeLight } from "../atmo.js";
-import { silhouetteAtlas } from "../silhouettes.js";
+import { SIL, silhouetteAtlas } from "../silhouettes.js";
 
 const lcg = (seed) => () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 const HINT = [0, 30, 0];
@@ -28,14 +28,15 @@ class MB {
   p = [];
   c = [];
   l = [];
-  quad(a, b, c, d, col, { glow = [0, 0, 0], ao = 1, two = false, out = false, light } = {}) {
+  // roof: marks the quad as part of the roof (the shader lights it as the show-lit ceiling)
+  quad(a, b, c, d, col, { glow = [0, 0, 0], ao = 1, two = false, out = false, light, roof = false } = {}) {
     let n = norm(cross(sub(b, a), sub(d, a)));
     const toward = (HINT[0] - a[0]) * n[0] + (HINT[1] - a[1]) * n[1] + (HINT[2] - a[2]) * n[2];
     if (toward < 0 !== out) n = [-n[0], -n[1], -n[2]];
     for (const v of [a, b, c, a, c, d]) {
       this.p.push(v[0], v[1], v[2]);
       this.c.push(col[0] * ao, col[1] * ao, col[2] * ao);
-      this.l.push(light ?? (out ? 0.02 : bakeLight(v, n, two) * ao), glow[0], glow[1], glow[2]);
+      this.l.push((light ?? (out ? 0.02 : bakeLight(v, n, two) * ao)) + (roof ? 4 : 0), glow[0], glow[1], glow[2]);
     }
   }
   // box section along a segment (4 long faces, no caps)
@@ -76,8 +77,11 @@ varying vec3 vCol; varying vec4 vLG; varying float vDist; varying vec3 vW;
 void main(){
   vec3 amb = vec3(.030,.034,.048) + uCue*.03;
   // the roof is lit from below by the show; seen from above (map fly-in) only a little leaks through
-  float L = vLG.x * ((vW.y > uRoofY && cameraPosition.y > vW.y + 4.) ? .16 : 1.);
-  if (vW.y > uRoofY && uGobo > 0.) {
+  // roof = everything above uRoofY (Wuxi, flat roof) or quads flagged by the builder (Nest, whose
+  // ceiling slopes down below the top rows): the flag is +4 on the baked light
+  bool roof = vLG.x > 3. || vW.y > uRoofY;
+  float L = (vLG.x > 3. ? vLG.x - 4. : vLG.x) * ((roof && cameraPosition.y > vW.y + 4.) ? .16 : 1.);
+  if (roof && uGobo > 0.) {
     // the show paints the membrane ceiling: strong wash plus slow gobo break-ups
     // (nest_山顶_0005, nest_517_0002, nest_517_0011, nest_717_0001)
     float a = atan(vW.z, vW.x), rr = length(vW.xz);
@@ -146,7 +150,7 @@ void main(){
   float occ = step(h2, occP);
   // one seated silhouette per cell, the same cutouts as the near cards (cheap far impostor:
   // one atlas tap, painted flat on the tier); faces catch the stage light, backs stay dark
-  float var = floor(h*16.);
+  float var = floor(h*${SIL.plain}.);
   vec2 sp = vec2(mix(.06,.94, h3 > .5 ? f.x : 1.-f.x), mix(.74,.22,f.y));
   vec2 sg = vec2(.94/8., -.52/4.);
   float sil = textureGrad(uAtlas, (vec2(mod(var,8.), floor(var/8.)) + sp)/vec2(8.,4.), dFdx(g)*sg, dFdy(g)*sg).r;
@@ -305,7 +309,7 @@ function buildStructure(venue, detail) {
     ribbon(up.i[0] - 0.12, up.i[1] - 0.12, up.y[0] - 0.75, up.y[0] + 0.25);
   }
   // back wall behind the top tier
-  const top = T[T.length - 1], wallTop = top.y[1] + 4.5;
+  const top = T[T.length - 1], wallTop = spec.wallTop ?? top.y[1] + 4.5;
   band({ a: top.o[0], b: top.o[1], y: top.y[1] }, { a: top.o[0], b: top.o[1], y: wallTop }, (i) => (i % 4 === 0 ? [0.09, 0.095, 0.1] : DARK), { ao: 0.9 });
   band({ a: top.o[0], b: top.o[1], y: wallTop }, { a: top.o[0] + 0.4, b: top.o[1] + 0.4, y: wallTop + 0.02 }, RAIL);
 
@@ -351,36 +355,59 @@ function buildStructure(venue, detail) {
       mb.quad(ringPt(F[0] + 2, F[1] + 2, 46, t0), ringPt(F[0] + 2, F[1] + 2, 46, t1), at(t1, 1, -1.5), at(t0, 1, -1.5), [0.3, 0.34, 0.35], { out: true, glow: [0.01, 0.013, 0.018] });
     }
   } else {
-    const [oa, ob] = roof.opening, [ra, rb] = roof.outer, y = roof.y, STEEL = [0.66, 0.72, 0.74], PANEL = [0.74, 0.79, 0.8];
+    const [oa, ob] = roof.opening, [ra, rb] = roof.outer, yTop = roof.top, [cIn, cOut] = roof.ceil, STEEL = [0.66, 0.72, 0.74], PANEL = [0.74, 0.79, 0.8];
+    // The membrane ceiling is a shallow funnel: lowest at the opening edge, rising outwards over
+    // the stands. From the top rows it fills the upper part of the view and hides the top of
+    // the far stand (nest_山顶_0005, nest_山顶_0003, nest_718_0005).
+    const ringAt = (f) => [oa + (ra - oa) * f, ob + (rb - ob) * f];
+    const ceilY = (f) => cIn + (cOut - cIn) * Math.max(0, f);
+    // which ring a plan point lies on (0 = opening edge, 1 = outer rim), by bisection
+    const fracAt = (x, z) => {
+      let lo = -0.3, hi = 1.3;
+      for (let i = 0; i < 16; i++) {
+        const f = (lo + hi) / 2, [a, b] = ringAt(f);
+        if (Math.hypot(x / a, z / b) > 1) lo = f;
+        else hi = f;
+      }
+      return (lo + hi) / 2;
+    };
     // translucent inner ceiling: irregular cushion panels
     const R = 4;
     for (let r = 0; r < R; r++) {
       const A = (r / R) ** 0.9, B = ((r + 1) / R) ** 0.9;
-      const ring = (f) => ({ a: oa + (ra - oa) * f, b: ob + (rb - ob) * f, y: y - 1.6 + 1.6 * f });
+      const ring = (f) => ({ a: ringAt(f)[0], b: ringAt(f)[1], y: ceilY(f) });
       let shade = 1, run = 0;
       band(ring(A), ring(B), () => {
         if (run-- <= 0) (shade = 0.8 + 0.2 * rnd()), (run = 1 + Math.floor(rnd() * 5));
         return PANEL.map((v) => v * shade);
-      }, { two: true });
+      }, { two: true, roof: true });
     }
-    band({ a: oa, b: ob, y: y - 3.2 }, { a: oa, b: ob, y: y - 1.2 }, STEEL, { two: true });
+    band({ a: oa, b: ob, y: cIn - 1.6 }, { a: oa, b: ob, y: cIn + 0.4 }, STEEL, { two: true, roof: true });
     // primary trusses: from each of the 24 columns, tangent to the roof opening
     // From the seats the roof steel is hidden behind the membrane ceiling; what shows is a
     // pale skin crossed by thin dark seams (nest_山顶_0005, nest_718_0008, nest_517_0001).
     const SEAM = [0.16, 0.165, 0.18];
-    const outerAt = (th) => [ra * Math.cos(th), y - 1.85, rb * Math.sin(th)];
+    const outerAt = (th) => [ra * Math.cos(th), 0, rb * Math.sin(th)];
     const chord = (P, dirx, dirz) => {
       // far intersection of the ray P + t·dir with the outer ellipse
       const A = (dirx / ra) ** 2 + (dirz / rb) ** 2, Bq = 2 * ((P[0] * dirx) / ra ** 2 + (P[2] * dirz) / rb ** 2);
       const t = -Bq / A;
-      return [P[0] + dirx * t, P[1], P[2] + dirz * t];
+      return [P[0] + dirx * t, 0, P[2] + dirz * t];
+    };
+    // a seam is a straight line in plan that follows the ceiling surface in height
+    const seam = (P, Q, w, h) => {
+      const K = 8, at = (s) => {
+        const m = lerp3(P, Q, s / K);
+        return [m[0], ceilY(fracAt(m[0], m[2])) - 0.25, m[2]];
+      };
+      for (let s = 0; s < K; s++) mb.beam(at(s), at(s + 1), w, h, SEAM, { roof: true });
     };
     for (let j = 0; j < roof.columns; j++) {
       const th = ((j + 0.5) / roof.columns) * Math.PI * 2, P = outerAt(th);
       const ux = P[0] / (oa * 1.04), uz = P[2] / (ob * 1.04), D = Math.hypot(ux, uz), phi = Math.atan2(uz, ux), al = Math.acos(1 / D);
       for (const sgn of [-1, 1]) {
         const Tn = [oa * 1.04 * Math.cos(phi + sgn * al), 0, ob * 1.04 * Math.sin(phi + sgn * al)];
-        mb.beam(P, chord(P, Tn[0] - P[0], Tn[2] - P[2]), 0.2, 0.12, SEAM);
+        seam(P, chord(P, Tn[0] - P[0], Tn[2] - P[2]), 0.2, 0.12);
       }
     }
     // secondary members: chords that stay clear of the opening
@@ -393,28 +420,29 @@ function buildStructure(venue, detail) {
       }
       if (!clear) continue;
       made++;
-      mb.beam(P, Q, 0.14, 0.1, SEAM);
+      seam(P, Q, 0.14, 0.1);
     }
     // show rigging hung under the opening edge: follow-spot trusses on cables and delay PA
-    // (nest_首场_0001, nest_718_0009, nest_526_0002)
-    const RIG = [0.035, 0.036, 0.04], rigAt = (th, dy, k = 0.985) => [oa * k * Math.cos(th), y - dy, ob * k * Math.sin(th)];
+    // (nest_首场_0001, nest_718_0009, nest_526_0002). In nest_山顶_0005 the trusses hang about
+    // 2.5 m below the ceiling edge.
+    const RIG = [0.035, 0.036, 0.04], rigAt = (th, dy, k = 0.985) => [oa * k * Math.cos(th), cIn - dy, ob * k * Math.sin(th)];
     for (let j = 0; j < 20; j++) {
       const th = ((j + 0.5) / 20) * Math.PI * 2, w = 6.5 / Math.hypot(oa * Math.sin(th), ob * Math.cos(th));
-      mb.beam(rigAt(th - w, 7.2), rigAt(th + w, 7.2), 1.3, 1.3, RIG);
-      for (const s of [-0.8, 0.8]) mb.beam(rigAt(th + w * s, 7.2), rigAt(th + w * s, 2.4), 0.12, 0.12, RIG);
+      mb.beam(rigAt(th - w, 3.6), rigAt(th + w, 3.6), 1.3, 1.3, RIG);
+      for (const s of [-0.8, 0.8]) mb.beam(rigAt(th + w * s, 3.6), rigAt(th + w * s, 1.2), 0.12, 0.12, RIG);
       if (j % 2 === 0) {
         const t2 = th + (Math.PI * 2) / 40;
-        mb.beam(rigAt(t2, 2.4, 0.93), rigAt(t2, 8, 0.93), 0.1, 0.1, RIG);
-        mb.beam(rigAt(t2, 8, 0.93), rigAt(t2, 13.5, 0.925), 1.3, 1.5, RIG);
+        mb.beam(rigAt(t2, 1.2, 0.93), rigAt(t2, 3, 0.93), 0.1, 0.1, RIG);
+        mb.beam(rigAt(t2, 3, 0.93), rigAt(t2, 8.5, 0.925), 1.3, 1.5, RIG);
       }
     }
     // outer shell: 24 leaning columns each way + hoops, following the bulged profile
-    const sc = (yy) => Math.max(0.74, 1 - 0.121 * ((y - yy) / 26) ** 1.45);
+    const sc = (yy) => Math.max(0.74, 1 - 0.121 * ((yTop - yy) / (yTop * 0.32)) ** 1.45);
     const shellPt = (th, yy) => [ra * sc(yy) * Math.cos(th), yy, rb * sc(yy) * Math.sin(th)];
     const WARM = [0.2, 0.05, 0.028];
     const member = (thA, thB, w) => {
       const K = 7;
-      for (let s = 0; s < K; s++) mb.beam(shellPt(thA + ((thB - thA) * s) / K, (y * s) / K), shellPt(thA + ((thB - thA) * (s + 1)) / K, (y * (s + 1)) / K), w, w, STEEL, { out: true, glow: WARM.map((v) => v * (1 - (0.7 * s) / K)) });
+      for (let s = 0; s < K; s++) mb.beam(shellPt(thA + ((thB - thA) * s) / K, (yTop * s) / K), shellPt(thA + ((thB - thA) * (s + 1)) / K, (yTop * (s + 1)) / K), w, w, STEEL, { out: true, glow: WARM.map((v) => v * (1 - (0.7 * s) / K)) });
     };
     const step = (Math.PI * 2) / roof.columns;
     for (let j = 0; j < roof.columns; j++) {
@@ -422,9 +450,11 @@ function buildStructure(venue, detail) {
       member(j * step, j * step - step * 1.6, 1.6);
       if (detail >= 0.6) member((j + 0.5) * step, (j + 0.5) * step + step * (rnd() * 2 - 1) * 2.4, 1.1);
     }
-    for (const hy of [30, 55, 68, 80.5]) for (let i = 0; i < 96; i++) mb.beam(shellPt((i / 96) * Math.PI * 2, hy), shellPt(((i + 1) / 96) * Math.PI * 2, hy), 1.3, 1.3, STEEL, { out: true, glow: WARM.map((v) => v * 0.5) });
-    // closing wall from the top-tier back wall to the roof rim
-    band({ a: top.o[0] + 0.4, b: top.o[1] + 0.4, y: wallTop }, { a: ra * 0.985, b: rb * 0.985, y: y - 0.2 }, (i) => (i % 3 === 0 ? [0.07, 0.07, 0.08] : [0.03, 0.03, 0.035]), { ao: 0.8 });
+    for (const hy of [0.37, 0.68, 0.84, 0.994]) for (let i = 0; i < 96; i++) mb.beam(shellPt((i / 96) * Math.PI * 2, hy * yTop), shellPt(((i + 1) / 96) * Math.PI * 2, hy * yTop), 1.3, 1.3, STEEL, { out: true, glow: WARM.map((v) => v * 0.5) });
+    // roof top skin between the ceiling rim and the top of the shell (seen from the map fly-in)
+    band({ a: ra * 0.985, b: rb * 0.985, y: cOut - 0.2 }, { a: ra, b: rb, y: yTop }, [0.2, 0.21, 0.23], { two: true, roof: true, light: 0.05 });
+    // closing wall from the top-tier back wall to the ceiling rim
+    band({ a: top.o[0] + 0.4, b: top.o[1] + 0.4, y: wallTop }, { a: ra * 0.985, b: rb * 0.985, y: cOut - 0.2 }, (i) => (i % 3 === 0 ? [0.07, 0.07, 0.08] : [0.03, 0.03, 0.035]), { ao: 0.8 });
   }
 
   const ribGeo = new THREE.BufferGeometry();
@@ -478,7 +508,7 @@ export function ProcBowl({ venue, bowl = "glb" }) {
   const parts = useMemo(() => {
     const spec = venue.bowl;
     const { struct, ribbons } = buildStructure(venue, detail);
-    const sm = structMaterial(spec.roof.type === "wuxi" ? 60 : 76, spec.roof.type === "nest" ? 1 : 0);
+    const sm = structMaterial(spec.roof.type === "wuxi" ? 60 : 1e4, spec.roof.type === "nest" ? 1 : 0);
     const col = (i) => ({ value: new THREE.Color(...spec.seatColors[i]) });
     const stands = new THREE.Mesh(
       buildStands(venue, detail),

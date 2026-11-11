@@ -3,7 +3,12 @@
 // that section's seat point (`seat`).
 
 // ============================ 鸟巢 (Nest) ============================
-const NEST_TIERS = { lower: { r0: 53, r1: 97, y0: 2, rise: 25 }, mid: { r0: 101, r1: 132, y0: 26, rise: 19 }, upper: { r0: 136, r1: 164, y0: 45, rise: 25 } };
+// Tier heights (y0 = front row, rise = front row to back row, metres above the field) were
+// lowered in the gaps pass: the old bowl put the top row at 70 m, higher than the real roof.
+// Now the top-row eye sits at 46.2 m = 129.90 m x tan(19°35'), the two maxima cited in
+// docs/refs/BOWL_PARAMS.md [N4]; the photo fit of nest_山顶_0005 gives 41-43 m a few rows
+// lower. The split between the tiers follows nest_首场_0002. The plan (r0, r1) is unchanged.
+const NEST_TIERS = { lower: { r0: 53, r1: 97, y0: 2, rise: 11.5 }, mid: { r0: 101, r1: 132, y0: 14.5, rise: 12.5 }, upper: { r0: 136, r1: 164, y0: 30.5, rise: 14 } };
 const NEST_SQUASH = 0.79;
 export const NEST_STAGE = { halfX: 28.5, halfZ: 18 };
 const NEST_COLORS = { red: "#e8605f", peach: "#f2b58f", yellow: "#eddc5c", lavender: "#b7a3dc", green: "#a8cf78", blue: "#7fb6e6", rose: "#c67a86", unsold: "#34363f" };
@@ -172,7 +177,11 @@ const NEST_BOWL = {
   seatColors: [[0.6, 0.09, 0.11], [0.6, 0.09, 0.11], [0.58, 0.09, 0.11]],
   whiteSeats: 0.3,
   field: { turf: [58, 39], track: null },
-  roof: { type: "nest", opening: [185.3 / 2, 127.5 / 2], outer: [174, 145], y: 81, columns: 24 },
+  // top: highest point of the steel roof (CITED 68.5 m). ceil: height of the membrane ceiling at
+  // the opening edge and at the outer rim (39 m is read off nest_山顶_0005; the outer value puts
+  // the ceiling 2 m above the 51.1 m concrete bowl). wallTop: top of the concrete bowl (CITED).
+  roof: { type: "nest", opening: [185.3 / 2, 127.5 / 2], outer: [174, 145], top: 68.5, ceil: [39, 56.3], columns: 24 },
+  wallTop: 51.1,
 };
 const WUXI_BOWL = {
   eps: 0.012,
@@ -202,7 +211,7 @@ export const VENUES = {
     barriers: [[0, 24.6, 64, 0.06], [0, -24.6, 64, 0.06], [-48.2, 0, 0.06, 34], [48.2, 0, 0.06, 34]],
     placeholderRings: [
       ...Object.values(NEST_TIERS).map((t) => ({ inner: [t.r0, t.r0 * NEST_SQUASH], outer: [t.r1, t.r1 * NEST_SQUASH], y: [t.y0, t.y0 + t.rise] })),
-      { inner: [125, 125 * NEST_SQUASH], outer: [174, 174 * NEST_SQUASH], y: [81, 81], roof: true },
+      { inner: [125, 125 * NEST_SQUASH], outer: [174, 174 * NEST_SQUASH], y: [68.5, 68.5], roof: true },
     ],
     meta: { title: "北京站", dates: ["07.10–12　07.17–19　07.24–26", "07.31　08.01–02"], place: "国家体育场 · 鸟巢", pageTitle: "薛之谦 · 鸟巢选座预览", aria: "北京站座位图" },
   },
