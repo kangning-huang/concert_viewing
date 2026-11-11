@@ -23,7 +23,7 @@ void main(){
   float att = 1./(1.+pow(d/80.,2.));
   vec3 alb = instanceColor;
   #ifdef PERSON
-    float headM = step(1.36, position.y);
+    float headM = step(1.40, position.y);
     float front = smoothstep(-.15,.45, dot(n, normalize(vec3(Ld.x,0.,Ld.z))));
     alb = mix(alb, mix(vec3(.022,.02,.02), vec3(.58,.42,.34), front), headM);
   #endif
@@ -55,14 +55,15 @@ function mergeGeos(list) {
 }
 // 1.7 m person: tapered torso + shoulders + head (head verts sit above y = 1.36).
 function personGeo(sides) {
-  const body = new THREE.CylinderGeometry(0.2, 0.15, 1.28, sides, 1);
+  const body = new THREE.CylinderGeometry(0.19, 0.14, 1.28, sides, 1);
   body.translate(0, 0.64, 0);
   body.scale(1, 1, 0.62);
-  const sh = new THREE.SphereGeometry(0.21, sides, 3, 0, Math.PI * 2, 0, Math.PI / 2);
-  sh.scale(1, 0.45, 0.62);
+  const sh = new THREE.SphereGeometry(0.2, sides, 3, 0, Math.PI * 2, 0, Math.PI / 2);
+  sh.scale(1, 0.38, 0.62);
   sh.translate(0, 1.27, 0);
-  const head = new THREE.SphereGeometry(0.115, Math.max(6, sides), 5);
-  head.translate(0, 1.52, 0);
+  const head = new THREE.SphereGeometry(0.105, Math.max(6, sides), 5);
+  head.scale(0.92, 1.12, 1);
+  head.translate(0, 1.53, 0);
   return mergeGeos([body, sh, head]);
 }
 const CLOTH = ["#0d0e12", "#15171d", "#22252c", "#3a3d45", "#c9c5bd", "#e9e6df", "#5a2630", "#283a5c", "#1f3b33", "#6b5a44", "#8a8d93", "#b06a7a"].map((c) => new THREE.Color(c));
@@ -144,7 +145,7 @@ export function FloorCrowd({ sections, density = 1 }) {
       o.updateMatrix();
       mesh.setMatrixAt(i, o.matrix);
       mesh.setColorAt(i, CLOTH[Math.floor(r() ** 1.6 * CLOTH.length)]);
-      if (r() < 0.3) pos.push(x + (r() - 0.5) * 0.3, 1.75 + r() * 0.35, z + (r() - 0.5) * 0.3), seeds.push(r());
+      if (r() < 0.17) pos.push(x + (r() - 0.5) * 0.3, 1.75 + r() * 0.35, z + (r() - 0.5) * 0.3), seeds.push(r());
     });
     mesh.count = spots.length;
     const g = new THREE.Group();

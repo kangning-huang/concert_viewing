@@ -129,7 +129,7 @@ export function useLedTextures() {
   // ImageBitmapLoader: decode off the main thread into a CPU bitmap before upload.
   // (<img> WebP textures caused a one-off ~55-75 ms stall a few seconds after load.)
   const bitmaps = new THREE.ImageBitmapLoader().setOptions({ imageOrientation: "flipY", premultiplyAlpha: "none" });
-  const jpgs = new THREE.TextureLoader(), loading = [];
+  const loading = [];
   const photo = (url, planeAspect, srcAspect) => {
     const t = new THREE.Texture();
     t.colorSpace = THREE.SRGBColorSpace;
@@ -152,10 +152,15 @@ export function useLedTextures() {
     );
     return t;
   };
+  // The two c941445 cue plates keep their original mapping (stretched over the end face),
+  // but are now also decoded off-thread and uploaded up front: as lazy <img> textures they
+  // cost a one-off ~75 ms frame at the first cue switch.
   const jpg = (url) => {
-    const t = jpgs.load(url);
+    const t = new THREE.Texture();
     t.colorSpace = THREE.SRGBColorSpace;
     t.anisotropy = 8;
+    t.flipY = false;
+    loading.push(new Promise((done) => bitmaps.load(url, (bmp) => { t.image = bmp; t.needsUpdate = true; done(t); }, undefined, () => done(null))));
     return t;
   };
   ledCache = {
@@ -448,7 +453,7 @@ function Confetti({ count = 7000, active }) {
     const u = mat.uniforms;
     u.uT.value = clock.elapsedTime;
     u.uOn.value = THREE.MathUtils.damp(u.uOn.value, active ? 1 : 0, 2.2, dt);
-    ref.current.visible = u.uOn.value > 0.01;
+    ref.current.visible = u.uOn.value > 0.01 || clock.elapsedTime < 1.2;
   });
   return <points ref={ref} geometry={geo} material={mat} />;
 }
@@ -695,6 +700,36 @@ const DECK_VS = /* glsl */ `
 varying vec3 vW; varying vec3 vN; varying float vDist;
 void main(){ vec4 wp = modelMatrix*vec4(position,1.); vW = wp.xyz; vN = normal; vec4 mv = viewMatrix*wp; vDist = length(mv.xyz); gl_Position = projectionMatrix*mv; }`;
 
+// The singer at stage centre with two follow spots from the roof rim and a light pool.
+const SPOT_WHITE = { value: new THREE.Color("#fff4e0") };
+function Performer() {
+  const map = useMemo(glowTex, []);
+  const mat = useMemo(() => beamMat(SPOT_WHITE, 0.3, 1), []);
+  const spots = useMemo(
+    () =>
+      [[-24, ROOF.y0 - 2, 10], [24, ROOF.y0 - 2, -10]].map((from) => {
+        const a = new THREE.Vector3(...from), dir = new THREE.Vector3(0, 3.6, 0).sub(a), len = dir.length();
+        const g = new THREE.ConeGeometry(1.5, len, 16, 1, true);
+        g.translate(0, -len / 2, 0);
+        return { g, p: from, q: new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.normalize()) };
+      }),
+    []
+  );
+  return (
+    <group name="performer">
+      <mesh position={[0, 3.35, 0]}>
+        <capsuleGeometry args={[0.2, 1.25, 4, 10]} />
+        <meshBasicMaterial color={[2.4, 2.2, 1.9]} toneMapped={false} />
+      </mesh>
+      <mesh position={[0, 2.43, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[9, 9]} />
+        <meshBasicMaterial map={map} color={[1.1, 1.0, 0.85]} transparent depthWrite={false} blending={THREE.AdditiveBlending} toneMapped={false} />
+      </mesh>
+      {spots.map(({ g, p, q }, i) => <mesh key={i} geometry={g} material={mat} position={p} quaternion={q} />)}
+    </group>
+  );
+}
+
 // Whale lies flat and swims: lathe axis (local +y, head) → world +x, belly (local +z) → down.
 const WHALE_FLYING = new THREE.Euler().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, -1, 0)));
 
@@ -741,6 +776,7 @@ export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS, quality 
         <boxGeometry args={[57, 2.4, 36]} />
       </mesh>
       <Bulbs points={edgeBulbs} size={0.11} />
+      <Performer />
       {motifs.building && (
         <group>
           {/* four black columns carry the roof; the LED volume hangs between them */}

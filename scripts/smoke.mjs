@@ -13,6 +13,9 @@ const [dir, label = "run"] = process.argv.slice(2);
 const shotIdx = process.argv.indexOf("--shots");
 const shotPrefix = shotIdx > 0 ? process.argv[shotIdx + 1] : null;
 const BASE = "/concert_viewing/";
+// optional: --quality <ultra|high|medium|low> (default high), --cpu <n> (CPU throttle ×n, mid-phone proxy)
+const argOf = (name, def) => (process.argv.indexOf(name) > 0 ? process.argv[process.argv.indexOf(name) + 1] : def);
+const QUALITY = argOf("--quality", "high"), CPU = Number(argOf("--cpu", 1));
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".jpg": "image/jpeg", ".webp": "image/webp", ".png": "image/png", ".glb": "model/gltf-binary", ".json": "application/json" };
 
 const server = http.createServer((req, res) => {
@@ -149,7 +152,8 @@ for (const c of CASES.filter((c) => !only || c.key.includes(only))) {
   page.on("pageerror", (e) => errors.push(String(e)));
   const r = { case: c.key, ok: true, notes: [] };
   try {
-    await page.goto(`${origin}?venue=${c.venue}&quality=high`, { waitUntil: "load", timeout: 60000 });
+    if (CPU > 1) await page.emulateCPUThrottling(CPU);
+    await page.goto(`${origin}?venue=${c.venue}&quality=${QUALITY}`, { waitUntil: "load", timeout: 60000 });
     await page.waitForSelector(".seat-svg g.sec", { timeout: 20000 });
     await new Promise((s) => setTimeout(s, 4000));
     if (shotPrefix && c.nth === 0 && !results.some((x) => x.case.startsWith(c.venue))) await page.screenshot({ path: `${shotPrefix}_map_${c.venue}.png` });
@@ -237,7 +241,7 @@ for (const c of CASES.filter((c) => !only || c.key.includes(only))) {
 }
 await browser.close();
 server.close();
-const out = { label, at: new Date().toISOString(), results };
+const out = { label, quality: QUALITY, cpuThrottle: CPU, at: new Date().toISOString(), results };
 console.log(JSON.stringify(out, null, 1));
 fs.mkdirSync("docs/perf", { recursive: true });
 fs.writeFileSync(`docs/perf/smoke_${label}.json`, JSON.stringify(out, null, 1));

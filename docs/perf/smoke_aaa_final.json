@@ -1,0 +1,376 @@
+{
+ "label": "aaa_final",
+ "quality": "high",
+ "cpuThrottle": 1,
+ "at": "2026-11-11T07:36:54.150Z",
+ "results": [
+  {
+   "case": "wuxi_floor_C3",
+   "ok": true,
+   "notes": [],
+   "mapIdle": {
+    "n": 492,
+    "median": 3.5,
+    "p95": 4.8,
+    "max": 6.5,
+    "jank33": 0,
+    "mean": 3.06
+   },
+   "tapTarget": {
+    "w": 17.4,
+    "h": 27.6
+   },
+   "picked": "C3区",
+   "flyin": {
+    "n": 636,
+    "median": 3.5,
+    "p95": 5.2,
+    "max": 14.7,
+    "jank33": 0,
+    "mean": 3.02
+   },
+   "controlDelta": 1.91,
+   "look": {
+    "n": 480,
+    "median": 3.4,
+    "p95": 5.2,
+    "max": 6.5,
+    "jank33": 0,
+    "mean": 2.92
+   },
+   "lookT0": 12960.599999904633,
+   "lookDelta": 51.72,
+   "cues": {
+    "n": 917,
+    "median": 3.4,
+    "p95": 5.2,
+    "max": 7.8,
+    "jank33": 0,
+    "mean": 3.08
+   },
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "case": "wuxi_bowl_409",
+   "ok": true,
+   "notes": [],
+   "mapIdle": {
+    "n": 503,
+    "median": 3.4,
+    "p95": 4.8,
+    "max": 6.5,
+    "jank33": 0,
+    "mean": 2.99
+   },
+   "tapTarget": {
+    "w": 28.9,
+    "h": 8.9
+   },
+   "picked": "409区",
+   "flyin": {
+    "n": 620,
+    "median": 3.6,
+    "p95": 5,
+    "max": 14.4,
+    "jank33": 0,
+    "mean": 3.08
+   },
+   "controlDelta": 2.62,
+   "look": {
+    "n": 488,
+    "median": 3.4,
+    "p95": 5.1,
+    "max": 6.5,
+    "jank33": 0,
+    "mean": 2.87
+   },
+   "lookT0": 12084.200000047684,
+   "lookDelta": 38.32,
+   "cues": {
+    "n": 920,
+    "median": 3.5,
+    "p95": 5,
+    "max": 6.8,
+    "jank33": 0,
+    "mean": 3.07
+   },
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "case": "wuxi_bowl_224",
+   "ok": true,
+   "notes": [],
+   "mapIdle": {
+    "n": 501,
+    "median": 3.4,
+    "p95": 4.9,
+    "max": 6.5,
+    "jank33": 0,
+    "mean": 3
+   },
+   "tapTarget": {
+    "w": 26.3,
+    "h": 13.2
+   },
+   "picked": "224区",
+   "flyin": {
+    "n": 620,
+    "median": 3.6,
+    "p95": 5.1,
+    "max": 13.1,
+    "jank33": 0,
+    "mean": 3.08
+   },
+   "controlDelta": 3.88,
+   "look": {
+    "n": 485,
+    "median": 3.4,
+    "p95": 5.2,
+    "max": 6.9,
+    "jank33": 0,
+    "mean": 2.89
+   },
+   "lookT0": 12170.799999952316,
+   "lookDelta": 40.77,
+   "cues": {
+    "n": 921,
+    "median": 3.4,
+    "p95": 5,
+    "max": 7.9,
+    "jank33": 0,
+    "mean": 3.07
+   },
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "case": "wuxi_band_409a",
+   "ok": true,
+   "notes": [],
+   "mapIdle": {
+    "n": 508,
+    "median": 3.4,
+    "p95": 4.7,
+    "max": 6.8,
+    "jank33": 0,
+    "mean": 2.96
+   },
+   "tapTarget": {
+    "w": 27.6,
+    "h": 10.2
+   },
+   "picked": "409区",
+   "flyin": {
+    "n": 633,
+    "median": 3.6,
+    "p95": 4.9,
+    "max": 14.9,
+    "jank33": 0,
+    "mean": 3.02
+   },
+   "controlDelta": 3.39,
+   "look": {
+    "n": 482,
+    "median": 3.4,
+    "p95": 5.3,
+    "max": 6.9,
+    "jank33": 0,
+    "mean": 2.91
+   },
+   "lookT0": 12130.200000047684,
+   "lookDelta": 33.53,
+   "cues": {
+    "n": 943,
+    "median": 3.4,
+    "p95": 4.9,
+    "max": 7.4,
+    "jank33": 0,
+    "mean": 2.99
+   },
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "case": "wuxi_floor_D3",
+   "ok": true,
+   "notes": [],
+   "mapIdle": {
+    "n": 522,
+    "median": 3.3,
+    "p95": 4.6,
+    "max": 7.1,
+    "jank33": 0,
+    "mean": 2.88
+   },
+   "tapTarget": {
+    "w": 18.1,
+    "h": 17.7
+   },
+   "picked": "D3区",
+   "flyin": {
+    "n": 648,
+    "median": 3.5,
+    "p95": 4.9,
+    "max": 15.6,
+    "jank33": 0,
+    "mean": 2.94
+   },
+   "controlDelta": 3.53,
+   "look": {
+    "n": 473,
+    "median": 3.5,
+    "p95": 5.1,
+    "max": 6.5,
+    "jank33": 0,
+    "mean": 2.97
+   },
+   "lookT0": 11877.100000023842,
+   "lookDelta": 28.55,
+   "cues": {
+    "n": 920,
+    "median": 3.4,
+    "p95": 5,
+    "max": 8.1,
+    "jank33": 0,
+    "mean": 3.07
+   },
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "case": "nest_floor_A1",
+   "ok": true,
+   "notes": [],
+   "mapIdle": {
+    "n": 617,
+    "median": 2.9,
+    "p95": 4.3,
+    "max": 5.9,
+    "jank33": 0,
+    "mean": 2.44
+   },
+   "tapTarget": {
+    "w": 9.5,
+    "h": 7.6
+   },
+   "picked": "A1区",
+   "flyin": {
+    "n": 756,
+    "median": 3,
+    "p95": 4.3,
+    "max": 10.2,
+    "jank33": 0,
+    "mean": 2.51
+   },
+   "controlDelta": 1.79,
+   "look": {
+    "n": 510,
+    "median": 3.4,
+    "p95": 4.3,
+    "max": 5.5,
+    "jank33": 0,
+    "mean": 2.75
+   },
+   "lookT0": 12522.399999976158,
+   "lookDelta": 36.52,
+   "cues": {
+    "n": 1013,
+    "median": 3.3,
+    "p95": 4.4,
+    "max": 5.7,
+    "jank33": 0,
+    "mean": 2.78
+   },
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "case": "nest_floor_D3",
+   "ok": true,
+   "notes": [],
+   "mapIdle": {
+    "n": 613,
+    "median": 2.9,
+    "p95": 4.2,
+    "max": 5.1,
+    "jank33": 0,
+    "mean": 2.45
+   },
+   "tapTarget": {
+    "w": 9.2,
+    "h": 8.7
+   },
+   "picked": "D3区",
+   "flyin": {
+    "n": 724,
+    "median": 3.1,
+    "p95": 4.5,
+    "max": 10.8,
+    "jank33": 0,
+    "mean": 2.64
+   },
+   "controlDelta": 3.04,
+   "look": {
+    "n": 505,
+    "median": 3.3,
+    "p95": 4.6,
+    "max": 5.7,
+    "jank33": 0,
+    "mean": 2.77
+   },
+   "lookT0": 11952.899999976158,
+   "lookDelta": 26.9,
+   "cues": {
+    "n": 1019,
+    "median": 3.3,
+    "p95": 4.5,
+    "max": 6.2,
+    "jank33": 0,
+    "mean": 2.77
+   },
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  },
+  {
+   "case": "nest_bowl_636",
+   "ok": true,
+   "notes": [],
+   "mapIdle": {
+    "n": 612,
+    "median": 2.8,
+    "p95": 4.2,
+    "max": 5.1,
+    "jank33": 0,
+    "mean": 2.46
+   },
+   "tapTarget": {
+    "w": 22.4,
+    "h": 16.8
+   },
+   "picked": "636区",
+   "flyin": {
+    "n": 751,
+    "median": 3.1,
+    "p95": 4.5,
+    "max": 11,
+    "jank33": 0,
+    "mean": 2.53
+   },
+   "controlDelta": 1.23,
+   "look": {
+    "n": 543,
+    "median": 3.1,
+    "p95": 4.4,
+    "max": 6,
+    "jank33": 0,
+    "mean": 2.58
+   },
+   "lookT0": 11900.899999976158,
+   "lookDelta": 22.53,
+   "cues": {
+    "n": 1086,
+    "median": 3.1,
+    "p95": 4.2,
+    "max": 5.6,
+    "jank33": 0,
+    "mean": 2.6
+   },
+   "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)"
+  }
+ ]
+}

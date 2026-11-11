@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { EffectComposer, Bloom, Vignette, ToneMapping } from "@react-three/postprocessing";
 import { ToneMappingMode } from "postprocessing";
 import * as THREE from "three";
 import { ProcBowl } from "./venue/ProcBowl.jsx";
-import { tickAtmo } from "./atmo.js";
+import { ATMO, tickAtmo } from "./atmo.js";
 import { StandLights, FloorCrowd, NearSeats } from "./Crowd.jsx";
 import { CameraRig } from "./CameraRig.jsx";
 import { JokerXueStage, CUES } from "../stage/JokerXueStage.jsx";
@@ -29,8 +29,43 @@ function SeatMarker({ section, visible }) {
   );
 }
 
+// Night sky: dark zenith, faint city glow at the horizon, show light scattered into the haze.
+const SKY_FS = /* glsl */ `
+uniform vec3 uCue; varying vec3 vDir;
+void main(){
+  vec3 d = normalize(vDir);
+  float up = max(d.y, 0.);
+  vec3 c = mix(vec3(.030,.022,.030), vec3(.004,.006,.014), pow(up,.45));
+  c += uCue*.05*pow(1.-up, 3.);
+  gl_FragColor = vec4(c,1.);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
 function Atmosphere({ cue }) {
+  const sky = useMemo(() => new THREE.ShaderMaterial({ side: THREE.BackSide, depthWrite: false, uniforms: { uCue: ATMO.uCue }, vertexShader: "varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.); }", fragmentShader: SKY_FS }), []);
   useFrame(({ clock }, dt) => tickAtmo(clock.elapsedTime, dt, CUES[cue]));
+  return (
+    <mesh material={sky} renderOrder={-10} frustumCulled={false}>
+      <sphereGeometry args={[1400, 24, 12]} />
+    </mesh>
+  );
+}
+
+// Warm-up: for the first few frames (hidden behind the 2D map) nothing is frustum-culled,
+// so every shader program and buffer is created before the first fly-in can need it.
+function Warmup({ frames = 4 }) {
+  const scene = useThree((st) => st.scene);
+  const left = useMemo(() => ({ n: frames, culled: null }), [frames]);
+  useFrame(() => {
+    if (left.n < 0) return;
+    if (!left.culled) {
+      left.culled = [];
+      scene.traverse((o) => {
+        if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.frustumCulled) left.culled.push(o), (o.frustumCulled = false);
+      });
+    }
+    if (left.n-- === 0) left.culled.forEach((o) => (o.frustumCulled = true));
+  });
   return null;
 }
 
@@ -49,7 +84,7 @@ function Post({ tier }) {
   const q = TIERS[tier];
   if (q.post === "none") return null;
   return (
-    <EffectComposer multisampling={0}>
+    <EffectComposer multisampling={q.msaa}>
       {q.bloom > 0 && <Bloom mipmapBlur intensity={q.bloom} luminanceThreshold={1} luminanceSmoothing={0.15} />}
       <ToneMapping mode={ToneMappingMode.ACES_FILMIC} />
       {q.post === "full" && <Vignette eskil={false} offset={0.28} darkness={0.62} />}
@@ -62,7 +97,7 @@ const exposeForRaycheck = (st) => {
   if (new URLSearchParams(window.location.search).has("raycheck")) window.__r3f = st;
 };
 
-const dprRange =(max) => ((typeof window < "u" ? window.innerWidth : 1024) < 720 ? [1, Math.min(max, 1.25)] : [1, max]);
+const dprRange = (max) => ((typeof window < "u" ? window.innerWidth : 1024) < 720 ? [1, Math.min(max, max >= 1.5 ? 1.5 : 1.25)] : [1, max]);
 
 export function StageCanvas({ venue, phase, section, cue, onArrived, onReturned }) {
   const [{ tier, adaptive }, setQ] = useState(initialQuality);
@@ -94,6 +129,7 @@ export function StageCanvas({ venue, phase, section, cue, onArrived, onReturned 
       <SeatMarker section={section} visible={phase === "flyin" || phase === "flyout"} />
       <CameraRig phase={phase} section={section} onArrived={onArrived} onReturned={onReturned} lookEnabled={phase === "pov"} />
       <Post tier={tier} />
+      <Warmup />
       {adaptive && <QualityWatch onDrop={onDrop} />}
     </Canvas>
   );
