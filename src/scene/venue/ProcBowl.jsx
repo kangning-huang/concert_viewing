@@ -375,7 +375,7 @@ function buildStructure(venue, detail) {
       const ux = P[0] / (oa * 1.04), uz = P[2] / (ob * 1.04), D = Math.hypot(ux, uz), phi = Math.atan2(uz, ux), al = Math.acos(1 / D);
       for (const sgn of [-1, 1]) {
         const Tn = [oa * 1.04 * Math.cos(phi + sgn * al), 0, ob * 1.04 * Math.sin(phi + sgn * al)];
-        mb.beam(P, chord(P, Tn[0] - P[0], Tn[2] - P[2]), 0.55, 0.3, SEAM);
+        mb.beam(P, chord(P, Tn[0] - P[0], Tn[2] - P[2]), 0.2, 0.12, SEAM);
       }
     }
     // secondary members: chords that stay clear of the opening
@@ -388,7 +388,7 @@ function buildStructure(venue, detail) {
       }
       if (!clear) continue;
       made++;
-      mb.beam(P, Q, 0.4, 0.3, SEAM);
+      mb.beam(P, Q, 0.14, 0.1, SEAM);
     }
     // show rigging hung under the opening edge: follow-spot trusses on cables and delay PA
     // (nest_首场_0001, nest_718_0009, nest_526_0002)
