@@ -8,7 +8,9 @@ export const KIT = {
   // main deck inside the ring
   deck: { hw: 22, hd: 13, h: 2.6 },
   // four-sided LED volume, flown under the roof (long face 2.77:1, end face 1.53:1)
-  box: { w: 40, d: 22, h: 14.4, y0: 11 },
+  // It is built as two bands: the upper one stays under the roof, the lower one (hLo) drops
+  // towards the deck in some songs and opens a gap (nest_226_0011, nest_大对角_0003).
+  box: { w: 40, d: 22, h: 14.4, y0: 11, hLo: 4.8 },
   // six truss towers inside the LED volume carry the roof
   towers: { xs: [-16.5, 0, 16.5], z: 8.6, size: 2.4 },
   // mother-grid roof: wider than the LED volume on every side, rounded corners

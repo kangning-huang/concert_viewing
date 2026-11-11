@@ -15,11 +15,14 @@ export const DEFAULT_MOTIFS = { towers: true, building: true, whale: true, eleph
 // show (nest_526_0001, nest_226_0001), rainbow rim on the confetti song (nest_226_0005,
 // nest_917_0005), deep red wash with white beams and red lasers (nest_山顶_0005,
 // nest_226_0004), deep blue with a white sunburst (nest_517_0004, nest_皇帝位_0005).
+// split = metres the lower LED band drops below the upper one: closed before the show
+// (nest_526_0004), a narrow gap on the red song (nest_226_0011), a wide one later
+// (nest_大对角_0003).
 export const CUES = {
-  title: { label: "开场", led: "title", edge: "#8fd0ff", rim: "#ffdcae", light: "#4f86ff", laser: "#6fd2ff", confetti: false, beam: "#dfe9ff" },
-  purple: { label: "漫天纸屑", led: "purple", edge: "#d88bff", rim: "#ffffff", rainbow: true, light: "#a650ff", laser: "#ff7ad9", confetti: true, beam: "#f0c8ff" },
-  red: { label: "红色独白", led: "red", edge: "#ff2a1c", rim: "#ff4a30", light: "#ff2318", laser: "#ff2a20", confetti: false, beam: "#fff0e8" },
-  blue: { label: "深蓝激光", led: "blue", edge: "#3f7bff", rim: "#bcd4ff", light: "#2148ff", laser: "#3b6bff", confetti: false, beam: "#eaf2ff" },
+  title: { label: "开场", led: "title", edge: "#8fd0ff", rim: "#ffdcae", light: "#4f86ff", laser: "#6fd2ff", confetti: false, beam: "#dfe9ff", split: 0 },
+  purple: { label: "漫天纸屑", led: "purple", edge: "#d88bff", rim: "#ffffff", rainbow: true, light: "#a650ff", laser: "#ff7ad9", confetti: true, beam: "#f0c8ff", split: 0 },
+  red: { label: "红色独白", led: "red", edge: "#ff2a1c", rim: "#ff4a30", light: "#ff2318", laser: "#ff2a20", confetti: false, beam: "#fff0e8", split: 3.6 },
+  blue: { label: "深蓝激光", led: "blue", edge: "#3f7bff", rim: "#bcd4ff", light: "#2148ff", laser: "#3b6bff", confetti: false, beam: "#eaf2ff", split: 6.4 },
 };
 export const CUE_ORDER = ["title", "purple", "red", "blue"];
 
@@ -130,6 +133,7 @@ const LED_DIR = `${import.meta.env.BASE_URL}stage/joker_xue_2026/led/${LED_RES}/
 // one-off ~60 ms frame on first close-up). SRC = true aspect of each captured screen.
 const SRC = { front: 2.7676, back: 2.7676, left: 1.5378, right: 1.5378, imag: 0.6002 };
 const END_FACE = KIT.box.d / KIT.box.h, LONG_FACE = KIT.box.w / KIT.box.h, IMAG = KIT.imag.w / KIT.imag.h;
+const LOW_LONG = KIT.box.w / KIT.box.hLo, LOW_END = KIT.box.d / KIT.box.hLo;
 
 // "object-fit: cover" (or "contain": the LED shader draws black outside 0..1) for a texture
 // on a plane of the given aspect. No stretching either way.
@@ -186,9 +190,13 @@ export function useLedTextures() {
   const [back] = photo(`${LED_DIR}back.webp`, SRC.back, LONG_FACE);
   const [left] = photo(`${LED_DIR}left.webp`, SRC.left, END_FACE);
   const [right] = photo(`${LED_DIR}right.webp`, SRC.right, END_FACE);
+  // lower band on the red song: its own white network graphic (nest_226_0011)
+  const [netLong, netEnd] = photo(`${LED_DIR}net.webp`, 8.33, LOW_LONG, LOW_END);
   ledCache = {
     // per cue: [long face +z, long face -z, both end faces] (real Nest screen captures)
     faces: { title: [titleLong, titleLong, titleEnd], purple: [front, back, left], red: [back, back, right], blue: [front, front, left] },
+    // per cue: own content for the lower band [long faces, end faces]; null = the face photo runs on
+    lower: { red: [netLong, netEnd] },
     // the four IMAG towers
     imag: [1, 2, 3, 4].map((i) => photo(`${LED_DIR}imag${i}.webp`, SRC.imag, IMAG)[0]),
   };
@@ -651,38 +659,64 @@ function Bulbs({ points, size = 0.3, kind = "bulb" }) {
 const WHITE = new THREE.Color("#ffffff");
 
 // ---- LED surfaces -------------------------------------------------------------------
-// Photo on an LED wall: per-pixel diode mask and cabinet seams up close (both fade out with
-// distance, so no moiré), a thin lit bezel around the face (nest_537_0006, nest_537_0009),
-// HDR gain so the wall glows through the bloom like a real screen.
+// Photo on an LED wall. What the photos show and the shader draws:
+//   - a see-through mesh: where the content is dark you look through the slats at the towers
+//     and the lights behind (nest_226_0008, nest_大对角_0006); bright content hides them,
+//   - the module grid: 1.0 x 0.5 m cabinets and the heavier 4 x 2.4 m frame behind them
+//     (nest_226_0008, nest_526_0004); both fade to their mean with distance, so no moiré,
+//   - per-pixel diodes up close, a thin lit bezel around each band (nest_537_0006),
+//   - HDR gain so bright content glows through the bloom and dark content does not.
 const LED_VS = /* glsl */ `
-uniform vec2 uRep; uniform vec2 uOff; varying vec2 vUv; varying vec2 vP; varying float vDist;
-void main(){ vUv = uv*uRep + uOff; vP = uv; vec4 mv = modelViewMatrix*vec4(position,1.); vDist = length(mv.xyz); gl_Position = projectionMatrix*mv; }`;
+uniform vec2 uRep; uniform vec2 uOff; uniform vec2 uBand; varying vec2 vUv; varying vec2 vP; varying float vDist;
+void main(){ vUv = vec2(uv.x, uBand.x + uv.y*uBand.y)*uRep + uOff; vP = uv; vec4 mv = modelViewMatrix*vec4(position,1.); vDist = length(mv.xyz); gl_Position = projectionMatrix*mv; }`;
 const LED_FS = /* glsl */ `
 ${GLSL_ATMO}
-uniform sampler2D uMap; uniform vec2 uSize; uniform float uGain; uniform float uBezel; uniform float uFade;
+uniform sampler2D uMap; uniform vec2 uSize; uniform float uGain; uniform float uBezel; uniform float uFade; uniform float uOpen;
 varying vec2 vUv; varying vec2 vP; varying float vDist;
+float gridLine(vec2 g, float w){ vec2 d = abs(fract(g)-.5); vec2 fw = fwidth(g); vec2 l = smoothstep(.5-w-fw, .5-w+fw, d); return max(l.x, l.y)*(1.-smoothstep(.15,.5,max(fw.x,fw.y))); }
 void main(){
-  vec3 c = texture2D(uMap, vUv).rgb;
+  vec3 tex = texture2D(uMap, vUv).rgb;
   // "contain" plates (the title card) melt into the black wall instead of ending in a box
-  c *= mix(1., smoothstep(0.,.22,vUv.x)*smoothstep(1.,.78,vUv.x), uFade);
-  vec2 px = vP*uSize/0.05;                         // 50 mm pixel pitch (drawn coarser than real)
-  float fw = max(fwidth(px.x), fwidth(px.y));
-  vec2 d = abs(fract(px)-.5);
-  float diode = mix(1., 1.35*(1.-smoothstep(.28,.5,max(d.x,d.y))), 1.-smoothstep(.25,.7,fw));
-  vec2 m = vP*uSize/vec2(1.,.5);                   // 1.0 x 0.5 m cabinets (nest_526_0004)
-  vec2 md = abs(fract(m)-.5);
-  float seam = mix(1., 1.-.55*step(.47,max(md.x,md.y)), 1.-smoothstep(.02,.1,max(fwidth(m.x),fwidth(m.y))));
-  c = c*uGain*diode*seam + vec3(.006,.006,.007)*seam;
-  vec2 e = min(vP, 1.-vP)*uSize;
-  c += uBezel*(1.-smoothstep(.06,.16,min(e.x,e.y)))*vec3(1.5,1.55,1.7);
-  c = applyFog(c, vDist*.35);
-  gl_FragColor = vec4(c,1.);
+  tex *= mix(1., smoothstep(0.,.22,vUv.x)*smoothstep(1.,.78,vUv.x), uFade);
+  vec2 m = vP*uSize;
+  float cab = gridLine(m/vec2(1.,.5), .035);         // 1.0 x 0.5 m cabinets (nest_526_0004)
+  float frame = gridLine(m/vec2(4.,2.4), .012);      // carrying frame, reads from far away
+  float slatG = m.y/.1;                              // 10 cm slats, 45 % open
+  float slatFw = fwidth(slatG);
+  float slat = mix(.55, step(.45, fract(slatG)), 1.-smoothstep(.25,.7,slatFw));
+  if (!gl_FrontFacing) {
+    // back of the wall, seen through the opposite face: dark slats, a little light spill
+    float a = uOpen > 0. ? max(max(cab, frame), slat*.85) : 1.;
+    gl_FragColor = vec4(applyFog(vec3(.008,.008,.01) + tex*.035, vDist*.35), a);
+  } else {
+    vec2 px = m/0.05;                                // 50 mm pixel pitch (drawn coarser than real)
+    float fw = max(fwidth(px.x), fwidth(px.y));
+    vec2 d = abs(fract(px)-.5);
+    float diode = mix(1., 1.35*(1.-smoothstep(.28,.5,max(d.x,d.y))), 1.-smoothstep(.25,.7,fw));
+    float seam = 1. - .6*cab - .35*frame;
+    vec3 c = tex*uGain*diode*seam + vec3(.006,.006,.007)*seam;
+    vec2 e = min(vP, 1.-vP)*uSize;
+    float bezel = 1.-smoothstep(.06,.16,min(e.x,e.y));
+    c += uBezel*bezel*vec3(1.5,1.55,1.7);
+    // lit pixels hide what is behind them; dark ones leave the mesh open
+    float lit = smoothstep(.02,.22, max(tex.r, max(tex.g, tex.b)));
+    float a = 1. - uOpen*(1.-lit)*(1.-slat)*(1.-max(cab,frame))*(1.-bezel);
+    gl_FragColor = vec4(applyFog(c, vDist*.35), a);
+  }
   ${GLSL_OUT}
 }`;
-function useLedMaterial(tex, w, h, gain = 1.7, bezel = 1) {
+const FULL_BAND = new THREE.Vector2(0, 1);
+function useLedMaterial(tex, w, h, gain = 1.7, bezel = 1, open = 0, band = FULL_BAND) {
   const mat = useMemo(
-    () => new THREE.ShaderMaterial({ uniforms: atmoUniforms({ uMap: { value: null }, uRep: { value: new THREE.Vector2(1, 1) }, uOff: { value: new THREE.Vector2() }, uSize: { value: new THREE.Vector2(w, h) }, uGain: { value: gain }, uBezel: { value: bezel }, uFade: { value: 0 } }), vertexShader: LED_VS, fragmentShader: LED_FS }),
-    [w, h, gain, bezel]
+    () =>
+      new THREE.ShaderMaterial({
+        transparent: open > 0,
+        side: open > 0 ? THREE.DoubleSide : THREE.FrontSide,
+        uniforms: atmoUniforms({ uMap: { value: null }, uRep: { value: new THREE.Vector2(1, 1) }, uOff: { value: new THREE.Vector2() }, uBand: { value: band }, uSize: { value: new THREE.Vector2(w, h) }, uGain: { value: gain }, uBezel: { value: bezel }, uFade: { value: 0 }, uOpen: { value: open } }),
+        vertexShader: LED_VS,
+        fragmentShader: LED_FS,
+      }),
+    [w, h, gain, bezel, open, band]
   );
   // repeat/offset are filled in by coverFit when the photo arrives → share them by reference
   mat.uniforms.uMap.value = tex;
@@ -691,12 +725,59 @@ function useLedMaterial(tex, w, h, gain = 1.7, bezel = 1) {
   mat.uniforms.uOff.value = tex.offset;
   return mat;
 }
-function LedPlane({ tex, w, h, gain, bezel, ...props }) {
-  const mat = useLedMaterial(tex, w, h, gain, bezel);
+function LedPlane({ tex, w, h, gain, bezel, open, band, ...props }) {
+  const mat = useLedMaterial(tex, w, h, gain, bezel, open, band);
   return (
     <mesh {...props} material={mat}>
       <planeGeometry args={[w, h]} />
     </mesh>
+  );
+}
+
+// The four-sided LED volume as two bands. The upper band hangs under the roof; the lower band
+// rides down by cue.split metres and opens a gap (nest_226_0011, nest_大对角_0003). Closed, one
+// photo runs across both bands; a cue may give the lower band its own content.
+const LED_OPEN = 0.9;
+function LedVolume({ faces, lower, split, trussMat }) {
+  const B = KIT.box, hUp = B.h - B.hLo, k = B.hLo / B.h;
+  const bands = useMemo(() => ({ up: new THREE.Vector2(k, 1 - k), lo: new THREE.Vector2(0, k) }), [k]);
+  const [faceF, faceB, faceE] = faces;
+  const sides = [
+    { key: "f", tex: faceF, low: lower?.[0], w: B.w, gain: 1.7, pos: [0, 0, B.d / 2 + 0.03], ry: 0 },
+    { key: "b", tex: faceB, low: lower?.[0], w: B.w, gain: 1.7, pos: [0, 0, -B.d / 2 - 0.03], ry: Math.PI },
+    { key: "e", tex: faceE, low: lower?.[1], w: B.d, gain: 1.5, pos: [B.w / 2 + 0.03, 0, 0], ry: Math.PI / 2 },
+    { key: "w", tex: faceE, low: lower?.[1], w: B.d, gain: 1.5, pos: [-B.w / 2 - 0.03, 0, 0], ry: -Math.PI / 2 },
+  ];
+  // slim carrying frames on the band edges (visible in the gap, nest_226_0008)
+  const frames = useMemo(() => {
+    const ring = (y) => [
+      { size: [B.w, 0.45, 0.45], pos: [0, y, B.d / 2 - 0.3] },
+      { size: [B.w, 0.45, 0.45], pos: [0, y, -B.d / 2 + 0.3] },
+      { size: [0.45, 0.45, B.d], pos: [B.w / 2 - 0.3, y, 0] },
+      { size: [0.45, 0.45, B.d], pos: [-B.w / 2 + 0.3, y, 0] },
+    ];
+    return { up: trussBoxes(ring(-hUp / 2 + 0.25), 0.45), lo: trussBoxes([...ring(B.hLo / 2 - 0.25), ...ring(-B.hLo / 2 + 0.25)], 0.45) };
+  }, [B, hUp]);
+  const lo = useRef();
+  const yLo = B.y0 + B.hLo / 2;
+  useFrame((_, dt) => {
+    if (lo.current) lo.current.position.y = THREE.MathUtils.damp(lo.current.position.y, yLo - split, 1.6, dt);
+  });
+  return (
+    <group name="led-volume">
+      <group position={[0, B.y0 + B.hLo + hUp / 2, 0]}>
+        <mesh geometry={frames.up} material={trussMat} />
+        {sides.map((s) => (
+          <LedPlane key={s.key} tex={s.tex} w={s.w} h={hUp} gain={s.gain} open={LED_OPEN} band={bands.up} position={s.pos} rotation={[0, s.ry, 0]} />
+        ))}
+      </group>
+      <group ref={lo} position={[0, yLo, 0]}>
+        <mesh geometry={frames.lo} material={trussMat} />
+        {sides.map((s) => (
+          <LedPlane key={s.key} tex={s.low ?? s.tex} w={s.w} h={B.hLo} gain={s.gain} open={LED_OPEN} band={s.low ? FULL_BAND : bands.lo} position={s.pos} rotation={[0, s.ry, 0]} />
+        ))}
+      </group>
+    </group>
   );
 }
 
@@ -991,7 +1072,6 @@ export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS, quality 
   }, [gl, tex]);
   const truss = useMemo(trussTex, []);
   const trussMat = useTrussMat(truss);
-  const [faceF, faceB, faceE] = tex.faces[c.led];
   const B = KIT.box, T = KIT.towers, R = KIT.roof, D = KIT.deck;
   const towerGeo = useMemo(() => {
     const h = R.y0 - D.h;
@@ -1014,17 +1094,7 @@ export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS, quality 
         <group>
           {/* six black truss towers carry the roof; the LED volume hangs around them */}
           <mesh geometry={towerGeo} material={trussMat} />
-          {/* LED volume: black carcass, four photo faces */}
-          <mesh position={[0, BOX_CY, 0]}>
-            <boxGeometry args={[B.w - 0.1, B.h, B.d - 0.1]} />
-            <meshBasicMaterial color="#030304" />
-          </mesh>
-          {[1, -1].map((s) => (
-            <LedPlane key={`l${s}`} tex={s > 0 ? faceF : faceB} w={B.w} h={B.h} position={[0, BOX_CY, s * (B.d / 2 + 0.03)]} rotation={[0, s < 0 ? Math.PI : 0, 0]} />
-          ))}
-          {[1, -1].map((s) => (
-            <LedPlane key={`e${s}`} tex={faceE} w={B.d} h={B.h} gain={1.5} position={[s * (B.w / 2 + 0.03), BOX_CY, 0]} rotation={[0, s > 0 ? Math.PI / 2 : -Math.PI / 2, 0]} />
-          ))}
+          <LedVolume faces={tex.faces[c.led]} lower={tex.lower[c.led]} split={c.split} trussMat={trussMat} />
           <RoofCanopy trussMat={trussMat} truss={truss} detail={quality.detail} />
           {quality.detail >= 1 && <PaHangs />}
         </group>

@@ -8,6 +8,7 @@ audience members appear in them.
 
 Run with: python3 -I scripts/bake_led_textures.py  (needs Pillow, repo root as cwd)
 """
+import sys
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageOps
@@ -32,6 +33,8 @@ SHOTS = {
     'right': dict(file='nest_537_0004.webp', world=SIDE, quad=[(420, 240), (1332, 270), (1332, 885), (420, 755)], patches=[(0.22, 0.0, 0.31, 0.2)]),
     'back': dict(file='nest_226_0011.webp', world=WIDE, quad=[(373, 373), (1188, 414), (1192, 634), (373, 670)], patches=[(0.135, 0.4, 0.25, 1.0), (0.63, 0.0, 0.69, 0.16)]),
     'left': dict(file='nest_537_0006.webp', world=SIDE, quad=[(1296, 269), (1860, 216), (1848, 828), (1296, 912)]),
+    # lower band of the split LED volume (red song): white network graphic, 40 x 4.8 m
+    'net': dict(file='nest_226_0011.webp', world=(40, 4.8), px=(1024, 128), quad=[(372, 791), (1203, 711), (1203, 788), (372, 855)]),
     'imag1': dict(file='nest_801_0003.webp', world=IMAG, quad=[(0, 300), (900, 300), (900, 1800), (0, 1800)]),
     'imag2': dict(file='nest_317_0004.webp', world=IMAG, quad=[(882, 252), (1310, 266), (1301, 918), (877, 873)]),
     'imag3': dict(file='nest_718_0001.webp', world=IMAG, quad=[(374, 378), (905, 432), (896, 1400), (387, 1269)]),
@@ -90,6 +93,8 @@ def bake(name, shot, size):
     longest = round(size * max(world_w, world_h) / WIDE[0])
     scale = longest / max(world_w, world_h)
     width, height = round(world_w * scale), round(world_h * scale)
+    if 'px' in shot:  # fixed power-of-two strip
+        width, height = (round(v * size / 1024) for v in shot['px'])
 
     source = Image.open(SRC / shot['file']).convert('RGB')
     aspect = shot.get('source_aspect')
@@ -115,4 +120,6 @@ def bake(name, shot, size):
 if __name__ == '__main__':
     for size in SIZES:
         for name, shot in SHOTS.items():
+            if len(sys.argv) > 1 and name not in sys.argv[1:]:
+                continue  # bake only the named plates
             print(bake(name, shot, size))
