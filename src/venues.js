@@ -9,7 +9,16 @@
 // docs/refs/BOWL_PARAMS.md [N4]; the photo fit of nest_山顶_0005 gives 41-43 m a few rows
 // lower. The split between the tiers follows nest_首场_0002. The plan (r0, r1) is unchanged.
 const NEST_TIERS = { lower: { r0: 53, r1: 97, y0: 2, rise: 11.5 }, mid: { r0: 101, r1: 132, y0: 14.5, rise: 12.5 }, upper: { r0: 136, r1: 164, y0: 30.5, rise: 14 } };
+const NEST_TIERS_R1 = 164;
 const NEST_SQUASH = 0.79;
+// 3D plan only (Blender pass): the map rings above put the end seats up to 164 m from the
+// field centre, but the farthest seat is CITED at 129.90 m ([N4], docs/refs/BOWL_PARAMS.md).
+// The long axis of every 3D ring is therefore pulled in linearly between the unchanged front
+// edge (53 m, unknown, kept) and the cited 129.90 m at the back of the top tier; the short
+// axis (r x 0.79, top row 129.6 m) already fits and is unchanged. The 2D map keeps the old
+// rings, so its polygons, labels and hotspots are exactly as before.
+const NEST_FRONT = 53, NEST_MAXVIEW = 129.9;
+const nestLong = (r) => NEST_FRONT + ((r - NEST_FRONT) * (NEST_MAXVIEW - NEST_FRONT)) / (NEST_TIERS_R1 - NEST_FRONT);
 export const NEST_STAGE = { halfX: 28.5, halfZ: 18 };
 const NEST_COLORS = { red: "#e8605f", peach: "#f2b58f", yellow: "#eddc5c", lavender: "#b7a3dc", green: "#a8cf78", blue: "#7fb6e6", rose: "#c67a86", unsold: "#34363f" };
 const NEST_PRICES = { red: 1717, peach: 1517, yellow: 1317, lavender: 917, green: 717, blue: 517, rose: 317 };
@@ -36,8 +45,10 @@ function nestBowl(id, slot, tier, d0, d1, tone) {
   const t = NEST_TIERS[tier], ri = t.r0 + (t.r1 - t.r0) * d0, ro = t.r0 + (t.r1 - t.r0) * d1, f0 = NEST_ROT + (slot - 0.47) / NEST_N, f1 = NEST_ROT + (slot + 0.47) / NEST_N, pts = [];
   for (let k = 0; k <= 4; k++) pts.push(nestPolar(ri, f0 + ((f1 - f0) * k) / 4));
   for (let k = 4; k >= 0; k--) pts.push(nestPolar(ro, f0 + ((f1 - f0) * k) / 4));
-  const dm = (d0 + d1) / 2, [x, z] = nestPolar(t.r0 + (t.r1 - t.r0) * dm, NEST_ROT + slot / NEST_N), y = t.y0 + t.rise * dm + 0.45;
-  return { id: String(id), tone, color: NEST_COLORS[tone], price: NEST_PRICES[tone], unsold: tone === "unsold", kind: "bowl", tier, slot, d: [d0, d1], points: pts, center: { x, z }, seat: { x, y: y + 1.2, z }, label: { x, z } };
+  const dm = (d0 + d1) / 2, rm = t.r0 + (t.r1 - t.r0) * dm, f = NEST_ROT + slot / NEST_N, [x, z] = nestPolar(rm, f), y = t.y0 + t.rise * dm + 0.45;
+  // seat = the camera in the 3D bowl (long axis pulled in, see nestLong); map uses the old rings
+  const seat = { x: nestLong(rm) * Math.sin(f * 2 * Math.PI), y: y + 1.2, z };
+  return { id: String(id), tone, color: NEST_COLORS[tone], price: NEST_PRICES[tone], unsold: tone === "unsold", kind: "bowl", tier, slot, d: [d0, d1], points: pts, center: { x, z }, seat, label: { x, z } };
 }
 const inR = (n, ...rs) => rs.some(([a, b]) => n >= a && n <= b);
 const nestLowerTone = (n) => (inR(n, [111, 113], [120, 122], [139, 141], [148, 150]) ? "unsold" : inR(n, [114, 119], [142, 147]) ? "green" : "lavender");
@@ -139,7 +150,7 @@ const nestCrowd = [["lower", 24], ["mid", 18], ["upper", 22]].map(([k, rows]) =>
     count: (d) => Math.floor((t.r0 + (t.r1 - t.r0) * d) * 3.6),
     at: (d, a) => {
       const r = t.r0 + (t.r1 - t.r0) * d;
-      return [r * Math.sin(a), t.y0 + t.rise * d + 1.25, r * NEST_SQUASH * Math.cos(a)];
+      return [nestLong(r) * Math.sin(a), t.y0 + t.rise * d + 1.25, r * NEST_SQUASH * Math.cos(a)];
     },
   };
 });
@@ -171,7 +182,7 @@ const NEST_BOWL = {
   theta: (slot) => Math.PI / 2 - 2 * Math.PI * (NEST_ROT + slot / NEST_N),
   tiers: ["lower", "mid", "upper"].map((key) => {
     const t = NEST_TIERS[key];
-    return { key, i: [t.r0, t.r0 * NEST_SQUASH], o: [t.r1, t.r1 * NEST_SQUASH], y: [t.y0, t.y0 + t.rise] };
+    return { key, i: [nestLong(t.r0), t.r0 * NEST_SQUASH], o: [nestLong(t.r1), t.r1 * NEST_SQUASH], y: [t.y0, t.y0 + t.rise] };
   }),
   // every Nest tier has red seats with white ones mixed in (nest_首场_0002..0004, nest_526_0005)
   seatColors: [[0.6, 0.09, 0.11], [0.6, 0.09, 0.11], [0.58, 0.09, 0.11]],
@@ -210,7 +221,7 @@ export const VENUES = {
     bowl: NEST_BOWL,
     barriers: [[0, 24.6, 64, 0.06], [0, -24.6, 64, 0.06], [-48.2, 0, 0.06, 34], [48.2, 0, 0.06, 34]],
     placeholderRings: [
-      ...Object.values(NEST_TIERS).map((t) => ({ inner: [t.r0, t.r0 * NEST_SQUASH], outer: [t.r1, t.r1 * NEST_SQUASH], y: [t.y0, t.y0 + t.rise] })),
+      ...Object.values(NEST_TIERS).map((t) => ({ inner: [nestLong(t.r0), t.r0 * NEST_SQUASH], outer: [nestLong(t.r1), t.r1 * NEST_SQUASH], y: [t.y0, t.y0 + t.rise] })),
       { inner: [125, 125 * NEST_SQUASH], outer: [174, 174 * NEST_SQUASH], y: [68.5, 68.5], roof: true },
     ],
     meta: { title: "北京站", dates: ["07.10–12　07.17–19　07.24–26", "07.31　08.01–02"], place: "国家体育场 · 鸟巢", pageTitle: "薛之谦 · 鸟巢选座预览", aria: "北京站座位图" },

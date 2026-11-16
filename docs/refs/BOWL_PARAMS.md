@@ -61,9 +61,16 @@ What was wrong: the model had the top row at 70 m (eye 71.7 m) and a flat roof a
 **Ceiling: 39 m at the opening edge, rising outwards.** In `nest_山顶_0005` the near edge of the membrane ceiling cuts the view 3–4° below the horizon, 53 m in front of the camera (opening 127.5 m wide [N1]). That puts the edge at 38–40 m. The model raises the ceiling to 2 m above the 51.1 m concrete bowl [N2] over the top row. The roof top is 68.5 m [N1] all round: **the saddle (40.1 m low points) is still not modelled**, because no source read says where the low points are.
 
 **Not corrected, still open:**
-- **Plan.** Rings are unchanged: 53–164 m on the long axis, ×0.79 on the short axis. End seats sit up to 142 m from the centre in the model, beyond the cited 129.90 m. The real front row follows the running track and is much more elongated than the model's. A plan drawing is needed.
+- **Plan.** *Partly corrected in the Blender pass (2026-11-16, below).* Map rings are unchanged: 53–164 m on the long axis, ×0.79 on the short axis. The real front row follows the running track and is much more elongated than the model's. A plan drawing is needed.
 - **Model outer roof plan** is 174 × 145 m (half-axes), from the old GLB; the cited outline is 166.15 × 148.2 m.
 - **Rake** is a result of the heights and the unverified plan, not a cited number.
+
+### Nest 3D plan, Blender pass (2026-11-16, branch `aaa-blender`)
+
+- **What changed:** in 3D only, the long axis of every tier ring is pulled in linearly between the front edge (53 m, unchanged, still unsourced) and **129.90 m** at the back of the top tier, the cited maximum viewing distance [N4]. Short axis unchanged (top row 129.6 m already fits). Result: lower 53–83.5 m, middle 86.3–107.7 m, upper 110.5–129.9 m on the long axis. No point of the 3D bowl lies beyond 129.90 m from the centre; the farthest seat camera (636) is at 124.6 m. Status: `DERIVED` (cited bound, linear fit is a modelling choice).
+- **What did not change:** the 2D map polygons, labels and hotspots (still drawn from the old rings), every tier height, the roof.
+- **Side effect:** the seat sheet's "距舞台" for end sections is now measured from the corrected 3D seat, so it is shorter than before (e.g. 636: 94 m).
+- **Still not modelled, no source:** the roof saddle (where the 40.1 m low points are; web search and fetch were refused in this session, so [N1] could not be re-read) and the middle-tier overhang. [N5] says the front 15 rows overhang the lower tier (`NEEDS_CONFIRM`), but with the derived heights (lower tier ends at 13.5 m, middle tier starts at 14.5 m) a 15-row (~12.7 m) overhang leaves no headroom over the lower tier's back rows, so the two cannot both be right; left as is.
 
 ### Prior "~47 m top row, rakes ~15°/28°/33°" claim
 
@@ -125,7 +132,7 @@ A consistency check only: if the 129.90 m and 19°35′ in [N4] were the same se
 4. Update Status column: `UNKNOWN` → `NEEDS_CONFIRM` → `CITED`.
 5. Only then remesh GLB / R3F bowl for that venue.
 
-Last updated: 2026-11-11 (Nest derived heights; no new sources).
+Last updated: 2026-11-16 (Nest 3D plan pulled inside the cited 129.90 m; no new sources).
 
 
 ## Seat map found (2026-11-09)
