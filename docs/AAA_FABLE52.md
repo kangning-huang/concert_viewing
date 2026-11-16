@@ -426,3 +426,77 @@ In `docs/refs/screenshots/`:
 - **Mascots.** The lion's face is still plain and the mane locks are regular. The eagle's primaries are ribs on one surface, not separate feathers with gaps. Under strongly coloured cues the relief is hard to see. Elephant, whale, airship and giant were not touched.
 - **Truss lattices** (alpha-tested, lit) are the next largest overdraw layer after haze: about 4 fragments per pixel from a floor seat. Not reduced.
 - Cards are flat boards, the eye height is still 1.65 m above the step, and mascots still fly above the roof. These are unchanged from the last pass.
+
+# Blender pass (branch `aaa-blender`, from `f0ebcd0`)
+
+Nothing was pushed or deployed. No other branch or worktree was touched. The Damai map, camera curves (1.6 s in, 1.25 s out), quality tiers, seated silhouette crowd, LED photo textures and stage kit dimensions are unchanged.
+
+## What moved into Blender
+
+**Lion, eagle and elephant.** These were hand-lofted in `src/stage/mascots.jsx`. They are now authored in Blender, headless, from the same photos (`nest_首场_0002`, `_0003`, `_0004`).
+
+- `assets/blender/build_mascots.py` (with `mascot_lib.py`) builds each animal in five steps:
+  1. **Parts.** Lofts along a spine, plus ellipsoids and cones.
+  2. **One skin.** All parts are voxel-remeshed and smoothed into one sewn, inflatable-looking surface. The old version was a pile of intersecting balloons.
+  3. **Carving.** Mouths are cut out with a boolean, then the fangs and tongue are set in.
+  4. **Sculpt by code.** Every skin vertex is mapped back to its part (position along the spine, angle round the section), then pushed and painted:
+     - lion: uneven, layered mane locks; a hood that frames the face, which now sticks out of the mane as in the photo; brow and whisker pads; stone-block joints and cracks on the rock;
+     - eagle: irregular feather rows, covert and secondary relief, and **seven separate primaries per wing, with real gaps between them**;
+     - elephant: trunk rings, knee and ankle wrinkles, ear folds and a carved mouth.
+  5. **Low poly and bake.** Each animal is decimated to 4,000–5,500 triangles and unwrapped (on a smoothed copy, which cuts the number of seams). Paint, AO and an object-space normal map are baked in Cycles into one shared 1024 × 1024 atlas pair.
+- `assets/blender/export_mascots.py` writes `public/stage/joker_xue_2026/mascots.glb`.
+  - It is plain glTF 2.0 with `KHR_mesh_quantization` (int16 positions with one uniform scale, int8 normals, uint16 UVs) and `EXT_texture_webp`.
+  - There is no Draco or meshopt: the runtime had no decoder.
+  - Run order: `Blender --background --python assets/blender/build_mascots.py`, then `Blender --background assets/blender/mascots.blend --python assets/blender/export_mascots.py`.
+  - Sources kept: `mascots.blend` (low-poly meshes plus the editable source parts; the 250–475k-vertex sculpts are rebuilt by the script and not stored) and lossless atlas masters in `tex/`.
+- **Runtime:**
+  - `src/stage/glb.js` is a 60-line reader for exactly this format, so three's GLTFLoader is not added to the bundle.
+  - One material for all three animals, one draw call per animal (as before).
+  - The GLB is fetched after the first frame. Until then each mesh holds one degenerate triangle with the final material, so the shader compiles during warm-up.
+  - Positions and sizes match the old meshes: world bounding boxes differ by at most 0.3 m.
+  - The procedural lion, eagle and elephant code is deleted (JS gzip 328 → 324 KB).
+- **Object-space normals, not tangent-space.** With tangent-space maps, three's derivative tangents disagreed with Blender's MikkTSpace and lit some UV islands wrongly.
+
+**Bird's Nest 3D plan (code, not Blender).** In 3D, the long axis of each tier ring is pulled in between the unchanged 53 m front edge and the cited **129.90 m** maximum viewing distance [N4]. Nothing in the 3D bowl is now beyond 129.90 m; it reached 164 m before. The 2D map polygons, labels and hotspots are unchanged. The seat sheet's distance for end sections is now shorter (636: 94 m). Details are in `docs/refs/BOWL_PARAMS.md`. Blender added nothing here: it is a data fix to `ProcBowl`'s rings, and `ProcBowl` still draws the whole bowl.
+
+## Sizes
+
+| | Before (`f0ebcd0`) | After |
+|---|---|---|
+| `mascots.glb` | — | 420 KB (atlases 64 + 103 KB, geometry 89 + 91 + 70 KB); 353 KB if the host gzips it |
+| JS bundle, gzip | 328 KB | 324 KB |
+| First 3D frame, Wuxi | 1282 KB | ~1279 KB before the deferred GLB; `transfer.mjs` reports 1699 KB because it waits for network idle, which includes it |
+| First 3D frame, Nest | 1021 KB | ~1017 KB before the GLB (1438 KB with it) |
+| Whole `dist`, wire | 2322 KB | 2739 KB |
+
+**Why the +417 KB:** the old animals cost zero bytes because they were built in code. The new ones are real sculpted assets. To get back near 2.3 MB:
+- a 512 normal atlas saves about 70 KB;
+- about 3,000 triangles per animal saves about 90 KB;
+- a meshopt decoder would cut geometry about 3×, but adds a decoder to the runtime.
+
+I did not take these cuts. Close-up quality was the point of this pass.
+
+## Checks run on the final build
+
+- `npm run build`: passes.
+- `npm run raycheck`: **PASS**, 0 hits, 0 footprint overlaps, 0 fly-path hits, Wuxi and Nest, six mascots, 5,056 rays per venue. The check now waits for the GLB, so it tests the real Blender meshes, not the placeholders.
+- `node scripts/smoke.mjs dist blender_final`: 8 of 8 pass. Fly-in median 3.0–3.3 ms, worst frame 9.7–16.1 ms, 0 frames over 33 ms.
+- `--quality medium --cpu 4`: 8 of 8 pass. Fly-in median 3.0–3.3 ms, worst frame 20.3–22.7 ms, 0 frames over 33 ms.
+- Both runs are the same as the gaps pass within noise (`docs/perf/smoke_blender_final*.json`). Apple M1, not a phone.
+
+## Screenshots (`docs/refs/screenshots/`)
+
+- Seat views: `aaa_blender_pov_wuxi_D3`, `aaa_blender_pov_wuxi_C3`, `aaa_blender_pov_wuxi_409` (409a), `aaa_blender_pov_nest_D3`, `aaa_blender_pov_nest_floor_A1`.
+- Heroes: `aaa_blender_hero_lion`, `aaa_blender_hero_eagle`, `aaa_blender_hero_elephant`.
+- Side by side: `aaa_blender_compare_nest_top_red`. Left is `nest_山顶_0005`; right is Nest 602 on the red song, cropped to about 51°. 602 is a side seat, so the plan fix moves it only 1.8 m.
+
+## What I could not do
+
+- **No new venue sources.** WebSearch and WebFetch were refused in this session. So:
+  - **Nest roof saddle:** not modelled. Which axis carries the 40.1 m low points is still unknown.
+  - **Nest middle-tier overhang:** not modelled. The "15 rows" figure [N5] is unconfirmed, and it conflicts with the derived tier heights: a ~12.7 m overhang would sit 1 m above the lower tier's back rows.
+  - **Wuxi:** the bowl is unchanged. The cited 50 m building height has no datum, and there are no Wuxi photos on disk (`assets/refs/xhs/wuxi` is empty). Lowering the 57 m top row (or the 69 m roof) would be a guess.
+- **Whale, airship and giant stay in code.** The whale photos are too small to model from. The airship and giant are emissive canvas-texture pieces where a sculpt adds little.
+- **Stage kit (truss, skin folds):** not done. The LED faces are untouched.
+- **Mascot looks:** under the show wash the paint reads mostly as the cue colour. The tops of the animals are dark because the main show light (y = 40 m) is below them (y = 44–56 m); this is unchanged. The lion's mouth is open but smaller than in the photo. The eagle's breast feathers still read a little like regular plates.
+- **No real phone was tested.**
