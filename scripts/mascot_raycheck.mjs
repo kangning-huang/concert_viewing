@@ -102,6 +102,10 @@ for (const vid of ["wuxi", "nest"]) {
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
   await page.goto(`${origin}?venue=${vid}&quality=high&raycheck`, { waitUntil: "load", timeout: 60000 });
   await page.waitForFunction(() => window.__r3f?.scene.getObjectByName("mascot:giant") && window.__r3f.scene.getObjectByName("mascot:eagle"), { timeout: 20000 });
+  // lion, eagle and elephant come from the Blender GLB after the first frame: test the real
+  // meshes, not the one-triangle placeholders they start with
+  await page.waitForFunction(() => window.__mascotsReady, { timeout: 30000 });
+  await new Promise((r) => setTimeout(r, 300));
 
   const seats = venue.sections.map((s) => ({ id: s.id, p: [s.seat.x, s.seat.y, s.seat.z] }));
   const res = await page.evaluate(
