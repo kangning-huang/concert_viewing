@@ -8,7 +8,8 @@ import { seatMetrics } from "./metrics.js";
 
 const LAND_MS = 200;
 const params = new URLSearchParams(window.location.search);
-const pathVenue = /\/wuxi\/?$/.test(location.pathname) ? "wuxi" : /\/beijing\/?$/.test(location.pathname) ? "nest" : null;
+const CITY_PATH = { nest: "beijing", wuxi: "wuxi", ganzhou: "ganzhou", kunming: "kunming" };
+const pathVenue = Object.entries(CITY_PATH).find(([, slug]) => new RegExp(`/${slug}/?$`).test(location.pathname))?.[0] ?? null;
 const venue = VENUES[params.get("venue") ?? pathVenue] ?? VENUES.nest;
 const hero = params.has("cam");
 // ?seat=<section id> opens straight on that seat (review screenshots, scripts/shot.mjs)
@@ -52,7 +53,7 @@ export default function App() {
         <nav className="venue-switch" aria-label="切换城市">
           {CITIES.map((c) => (c.id === venue.id
             ? <span key={c.id} className="here">{c.label}</span>
-            : <a key={c.id} href={`?venue=${c.id}`}>{c.label}</a>))}
+            : <a key={c.id} href={pathVenue ? `../${CITY_PATH[c.id]}/` : `?venue=${c.id}`}>{c.label}</a>))}
         </nav>
       </div>
       {onMap && (
