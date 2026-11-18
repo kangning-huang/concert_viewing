@@ -1,7 +1,7 @@
 // Shared stage kit "joker_xue_2026", rebuilt from the Xiaohongshu photos of the Beijing Nest
 // shows (assets/refs/xhs/nest). docs/XHS_STAGE_MATCH.md is the photo checklist; dimensions
 // live in ./kit.js. Photo file names in comments name the evidence for that part.
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import ledTitleUrl from "./led_title.jpg";
@@ -204,6 +204,184 @@ export function useLedTextures() {
   ledCache.ready = Promise.all(loading).then((l) => l.flat());
   return ledCache;
 }
+
+// The opening title card is a Nest photo (led_title.jpg) with "北京站 2026.07.17" painted
+// on it. Other cities keep the 万兽之王 art and only replace that one line.
+const NEST_LED = { city: "北京站", date: "2026.07.17" };
+const LED_CITY_X = [106, 164, 222];
+const LED_DATE_X = [326, 364, 402, 440, 480, 504, 542, 578, 604, 637];
+const LED_BASELINE = 770;
+const LED_SIZE = 38;
+const LED_INK = "rgb(229, 212, 221)";
+const LED_FONT = '600 1px "PingFang SC","Hiragino Sans GB","Noto Sans SC","Source Han Sans SC",sans-serif';
+
+const loadLedTitle = (url) =>
+  new Promise((ok, err) => {
+    const im = new Image();
+    im.onload = () => ok(im);
+    im.onerror = err;
+    im.src = url;
+  });
+
+const isYellow = (r, g, b) => r > 150 && g > 110 && b < 100;
+const isGlyph = (r, g, b) => {
+  const y = 0.299 * r + 0.587 * g + 0.114 * b;
+  const chroma = Math.abs(r - g) + Math.abs(g - b);
+  return y > 90 && chroma < 80 && !isYellow(r, g, b);
+};
+
+function coverLedLine(ctx, w, h) {
+  const sx = w / 768, sy = h / 1024;
+  const x0 = Math.floor(90 * sx), x1 = Math.ceil(680 * sx);
+  const y0 = Math.floor(724 * sy), y1 = Math.ceil(780 * sy);
+  const rad = Math.max(3, Math.round(3 * sy));
+  const img = ctx.getImageData(0, 0, w, h);
+  const d = img.data;
+  const at = (x, y) => (y * w + x) * 4;
+  const mask = new Uint8Array(w * h);
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      const i = at(x, y);
+      if (isGlyph(d[i], d[i + 1], d[i + 2])) mask[y * w + x] = 1;
+    }
+  }
+  const dil = new Uint8Array(mask);
+  for (let y = y0; y <= y1; y++) {
+    for (let x = x0; x <= x1; x++) {
+      if (!mask[y * w + x]) continue;
+      for (let dy = -rad; dy <= rad; dy++) {
+        for (let dx = -rad; dx <= rad; dx++) {
+          const xx = x + dx, yy = y + dy;
+          if (xx >= 0 && xx < w && yy >= 0 && yy < h) dil[yy * w + xx] = 1;
+        }
+      }
+    }
+  }
+  // keep the yellow crown and underline
+  for (let y = Math.max(0, y0 - 20); y < Math.min(h, y1 + 40); y++) {
+    for (let x = x0; x <= x1; x++) {
+      const i = at(x, y);
+      if (!isYellow(d[i], d[i + 1], d[i + 2])) continue;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const xx = x + dx, yy = y + dy;
+          if (xx >= 0 && xx < w && yy >= 0 && yy < h) dil[yy * w + xx] = 0;
+        }
+      }
+    }
+  }
+  const tryDy = [56, 60, 64, 52, 48, 70, 40, -36, -40].map((v) => Math.round(v * sy));
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (!dil[y * w + x]) continue;
+      let found = false;
+      const i = at(x, y);
+      for (const dy of tryDy) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= h) continue;
+        const j = at(x, yy);
+        if (!dil[yy * w + x] && !isYellow(d[j], d[j + 1], d[j + 2])) {
+          d[i] = d[j];
+          d[i + 1] = d[j + 1];
+          d[i + 2] = d[j + 2];
+          d[i + 3] = d[j + 3];
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        d[i] = 18;
+        d[i + 1] = 32;
+        d[i + 2] = 55;
+        d[i + 3] = 255;
+      }
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function drawLedLine(ctx, w, h, city, date) {
+  const sx = w / 768, sy = h / 1024;
+  ctx.fillStyle = LED_INK;
+  ctx.textBaseline = "alphabetic";
+  ctx.textAlign = "left";
+  ctx.font = LED_FONT.replace("1px", `${Math.round(LED_SIZE * sy)}px`);
+  const baseline = LED_BASELINE * sy;
+  const chars = [...city];
+  if (chars.length === LED_CITY_X.length) chars.forEach((ch, i) => ctx.fillText(ch, LED_CITY_X[i] * sx, baseline));
+  else ctx.fillText(city, LED_CITY_X[0] * sx, baseline);
+  const ds = [...date];
+  if (ds.length === LED_DATE_X.length) ds.forEach((ch, i) => ctx.fillText(ch, LED_DATE_X[i] * sx, baseline));
+  else ctx.fillText(date, LED_DATE_X[0] * sx, baseline);
+}
+
+function paintLedTitle(img, city, date) {
+  const c = document.createElement("canvas");
+  c.width = img.width;
+  c.height = img.height;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  if (city !== NEST_LED.city || date !== NEST_LED.date) {
+    coverLedLine(ctx, c.width, c.height);
+    drawLedLine(ctx, c.width, c.height, city, date);
+  }
+  return c;
+}
+
+function titleTexturesFromCanvas(canvas) {
+  const mk = (aspect) => {
+    const t = new THREE.CanvasTexture(canvas);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.anisotropy = 8;
+    t.userData.contain = true;
+    fit(t, aspect, 0.75, true);
+    return t;
+  };
+  const long = mk(LONG_FACE);
+  const end = mk(END_FACE);
+  return [long, long, end];
+}
+
+function blackTitleCanvas() {
+  const c = document.createElement("canvas");
+  c.width = 4;
+  c.height = 4;
+  const ctx = c.getContext("2d");
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, 4, 4);
+  return c;
+}
+
+function useVenueTitleFaces(tex, venue) {
+  const city = venue?.meta?.title ?? NEST_LED.city;
+  const date = venue?.meta?.ledDate ?? NEST_LED.date;
+  const needsPaint = city !== NEST_LED.city || date !== NEST_LED.date;
+  const [faces, setFaces] = useState(() => (needsPaint ? { ...tex.faces, title: titleTexturesFromCanvas(blackTitleCanvas()) } : tex.faces));
+  useEffect(() => {
+    let live = true;
+    let made;
+    if (!needsPaint) {
+      setFaces(tex.faces);
+      return undefined;
+    }
+    (async () => {
+      const img = await loadLedTitle(ledTitleUrl);
+      if (document.fonts?.ready) await document.fonts.ready;
+      if (!live) return;
+      made = titleTexturesFromCanvas(paintLedTitle(img, city, date));
+      setFaces({ ...tex.faces, title: made });
+    })();
+    return () => {
+      live = false;
+      if (made) {
+        made[0].dispose();
+        made[2].dispose();
+      }
+    };
+  }, [tex, city, date, needsPaint]);
+  return faces;
+}
+
 
 // ---- inflatable / sculpted motifs -------------------------------------------------
 const GREY = "#55575b";
@@ -1028,9 +1206,10 @@ function Performer() {
 const WHALE_FLYING = new THREE.Euler().setFromRotationMatrix(new THREE.Matrix4().makeBasis(new THREE.Vector3(0, 0, -1), new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, -1, 0)));
 
 // quality: { detail, fx } from the tier table (src/quality.js → TIERS[tier].stage)
-export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS, quality = { detail: 1, fx: 1 } }) {
+export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS, quality = { detail: 1, fx: 1 }, venue }) {
   const c = CUES[cue];
   const tex = useLedTextures();
+  const faces = useVenueTitleFaces(tex, venue);
   const gl = useThree((st) => st.gl);
   // Upload every screen photo up front so cue switches / fly-in never hitch on a texture upload.
   useEffect(() => {
@@ -1064,7 +1243,7 @@ export function JokerXueStage({ cue = "title", motifs = DEFAULT_MOTIFS, quality 
         <group>
           {/* six black truss towers carry the roof; the LED volume hangs around them */}
           <mesh geometry={towerGeo} material={trussMat} />
-          <LedVolume faces={tex.faces[c.led]} lower={tex.lower[c.led]} split={c.split} trussMat={trussMat} />
+          <LedVolume faces={faces[c.led]} lower={tex.lower[c.led]} split={c.split} trussMat={trussMat} />
           <RoofCanopy trussMat={trussMat} truss={truss} detail={quality.detail} />
           {quality.detail >= 1 && <PaHangs />}
         </group>

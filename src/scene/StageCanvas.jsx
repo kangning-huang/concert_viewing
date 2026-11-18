@@ -147,7 +147,7 @@ export function StageCanvas({ venue, phase, section, cue, onArrived, onReturned 
       <directionalLight position={[60, 150, 40]} intensity={0.45} color="#9fb2d6" />
       <Atmosphere cue={cue} />
       <ProcBowl venue={venue} bowl={q.bowl} />
-      <JokerXueStage cue={cue} quality={q.stage} />
+      <JokerXueStage venue={venue} cue={cue} quality={q.stage} />
       <StandLights venue={venue} density={q.crowd} />
       <NearSeats venue={venue} section={section} enabled={q.bowl !== "stub"} />
       <FloorCrowd venue={venue} density={q.crowd} />

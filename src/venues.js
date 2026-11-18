@@ -224,7 +224,7 @@ export const VENUES = {
       ...Object.values(NEST_TIERS).map((t) => ({ inner: [nestLong(t.r0), t.r0 * NEST_SQUASH], outer: [nestLong(t.r1), t.r1 * NEST_SQUASH], y: [t.y0, t.y0 + t.rise] })),
       { inner: [125, 125 * NEST_SQUASH], outer: [174, 174 * NEST_SQUASH], y: [68.5, 68.5], roof: true },
     ],
-    meta: { title: "北京站", dates: ["07.10–12　07.17–19　07.24–26", "07.31　08.01–02"], place: "国家体育场 · 鸟巢", pageTitle: "薛之谦 · 鸟巢选座预览", aria: "北京站座位图" },
+    meta: { title: "北京站", dates: ["07.10–12　07.17–19　07.24–26", "07.31　08.01–02"], ledDate: "2026.07.17", place: "国家体育场 · 鸟巢", pageTitle: "薛之谦 · 鸟巢选座预览", aria: "北京站座位图" },
   },
   wuxi: {
     id: "wuxi",
@@ -242,7 +242,7 @@ export const VENUES = {
     bowl: WUXI_BOWL,
     barriers: [[0, 28, 96, 0.06], [0, -28, 96, 0.06], [-49, 0, 0.06, 56], [49, 0, 0.06, 56]],
     placeholderRings: [...Object.values(WUXI_TIERS).map((t) => ({ inner: t.i, outer: t.o, y: t.y }))],
-    meta: { title: "无锡站", dates: ["11.13–15　11.20–22"], place: "无锡奥林匹克体育中心体育场", pageTitle: "薛之谦 · 无锡站选座预览", aria: "无锡站座位图" },
+    meta: { title: "无锡站", dates: ["11.13–15　11.20–22"], ledDate: "2026.11.13", place: "无锡奥林匹克体育中心体育场", pageTitle: "薛之谦 · 无锡站选座预览", aria: "无锡站座位图" },
   },
 };
 
