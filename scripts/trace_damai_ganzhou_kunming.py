@@ -1,528 +1,551 @@
 #!/usr/bin/env python3
-"""Trace Ganzhou / Kunming Damai maps into official-bitmap hotspots.
+"""Trace the official Damai Ganzhou / Kunming seat maps into per-block tap hotspots.
 
-Floor blocks are connected components of the official colour. Stand hotspots are
-elliptical sectors whose angles were read off an eccentric-angle ruler overlaid
-on the official map (the picture IS the Damai map; it is never redrawn).
-Closed / 控台 / 中区 / pale numbered strips have no hotspot.
+Every hotspot is a contour traced FROM THE BITMAP (no analytic ellipse model):
+  1. the 7 price colours are sampled from the legend swatches at the bottom of the map and
+     calibrated to the (lighter) shade the blocks are printed in;
+  2. printed labels are inpainted, then each pixel is classified to its nearest tier shade
+     (Lab, tight radius), so darker 3D side faces, block borders, grey (控台 / numbered strips)
+     and the dark obstructed blocks fall out of every class;
+  3. connected components of each class are the printed cells; a cell printed in two prices
+     splits into one component per price band;
+  4. the printed label of each block is read with macOS Vision OCR (ocrmac) and parsed
+     (16A区(上) → 16A上, 主席台2区 → 主席台2). A label owns the lit cell(s) its text sits on or
+     straddles (thin strips: the two cells either side of the line it is printed on; same-colour
+     cells are joined across that line). Other-price bands of the block get "<label>-<price>"
+     (e.g. A23-517). Kunming's 8 px stand labels are assigned by printed order, OCR cross-checks;
+  5. contours are simplified with approxPolyDP (epsilon 0.5 px of the displayed image), 1 px
+     inset so neighbouring polygons never overlap.
+Blocks labelled 控台 / *中*区 and unlabelled lit cells (small numbered strips) get no
+hotspot; obstructed (dark) blocks never enter a colour class. The displayed bitmap
+(src/ui/damai/<city>_damai_map.webp) is the official map cropped; it is not rewritten here.
+Verify with scripts/check_damai_shapes.py (overlay PNG + label / colour / mask / overlap checks).
 
-    python scripts/trace_damai_ganzhou_kunming.py ganzhou <src.jpg> <out_dir> [debug_dir]
-    python scripts/trace_damai_ganzhou_kunming.py kunming <src.jpg> <out_dir> [debug_dir]
+Per hotspot meta: sampled tone/price (median colour inside the contour → nearest legend
+swatch), polygon centroid angle / min-max angle (eccentric angle about the map ellipse) and
+rho band, which venues.js turns into the 3D section layout.
+
+    /path/to/venv/bin/python scripts/trace_damai_ganzhou_kunming.py ganzhou <src> <out_dir>
+    /path/to/venv/bin/python scripts/trace_damai_ganzhou_kunming.py kunming <src> <out_dir>
+Needs opencv-python-headless, numpy, pillow, ocrmac (macOS).
 """
 from __future__ import annotations
-import json, math, sys
+import json, math, os, re, sys
 from pathlib import Path
 import cv2
 import numpy as np
 from PIL import Image
 
-CITY, SRC, OUT = sys.argv[1], sys.argv[2], Path(sys.argv[3])
-DBG = Path(sys.argv[4]) if len(sys.argv) > 4 else None
-
-WINDOWS = {
-    "red":    lambda H, S, V: ((H <= 6) | (H >= 172)) & (S >= 80) & (V >= 90),
-    "orange": lambda H, S, V: (H > 6) & (H <= 16) & (S >= 50) & (V >= 120),
-    "yellow": lambda H, S, V: (H > 16) & (H <= 36) & (S >= 70) & (V >= 140),
-    "green":  lambda H, S, V: (H > 36) & (H <= 86) & (S >= 40) & (V >= 80),
-    "blue":   lambda H, S, V: (H > 86) & (H <= 116) & (S >= 40) & (V >= 80),
-    "purple": lambda H, S, V: (H > 116) & (H <= 155) & (S >= 35) & (V >= 90),
-    "pink":   lambda H, S, V: (H > 155) & (H < 172) & (S >= 40) & (V >= 80),
+PRICES = [1717, 1517, 1317, 917, 717, 517, 317]  # legend order, left → right
+TONES = ["red", "peach", "yellow", "lavender", "green", "blue", "rose"]
+# Crop of the source map that the displayed webp shows: source px = (x0, y0) + view px * k.
+# (view space = the hotspot JSON viewBox; the webp is the same crop at 2× view resolution.)
+CITY_CFG = {
+    "ganzhou": dict(up=1, crop=(715, 217, 3526, 2689), k=3.428048780487805,
+                    ellipse=(410.14, 299.89, 401.11, 292.87),
+                    tiers={"lower": (0.65, 0.755), "mid": (0.765, 0.868), "upper": (0.868, 1.02)},
+                    source="Damai official Ganzhou seat map (img.alicdn.com …/O1CN01iWRwOPjaYUJ7Vlpd), traced from the bitmap by scripts/trace_damai_ganzhou_kunming.py"),
+    "kunming": dict(up=3, crop=(152, 124, 1208, 914), k=1.2878048780487805,
+                    ellipse=(410.26, 263.11, 386.97, 243.95),
+                    tiers={"lower": (0.73, 0.872), "upper": (0.878, 1.03)},
+                    source="Damai official Kunming seat map (img.alicdn.com …/O1CN01Y1PNiRzNzgK2b8AE), traced from the bitmap by scripts/trace_damai_ganzhou_kunming.py"),
 }
-TONE = {"red":"red","orange":"peach","yellow":"yellow","green":"green","blue":"blue","purple":"lavender","pink":"rose"}
-PRICE = {"red":1717,"peach":1517,"yellow":1317,"lavender":917,"green":717,"blue":517,"rose":317}
-SOURCES = {
-    "ganzhou": "Damai official Ganzhou seat map (img.alicdn.com …/O1CN01iWRwOPjaYUJ7Vlpd), traced by scripts/trace_damai_ganzhou_kunming.py",
-    "kunming": "Damai official Kunming seat map (img.alicdn.com …/O1CN01Y1PNiRzNzgK2b8AE), traced by scripts/trace_damai_ganzhou_kunming.py",
+RADIUS = 16.0  # Lab distance to the calibrated tier shade
+FLOOR_RE = re.compile(r"^[A-D][1-4]$")
+GZ_MAX = {"A": 31, "B": 38, "C": 38, "D": 4, "E": 38}
+# Printed labels Vision OCR misses (box in source px, checked against the official image).
+MANUAL_LABELS = {
+    "ganzhou": {"B25": (834, 1240, 891, 1265)},  # OCR reads "$25区" / "625区"
+    "kunming": {},
 }
 
-def name_for(sid):
-    if sid.startswith("主席台"):
-        return f"{sid}区"
-    if sid.endswith("下") or sid.endswith("上"):
-        return f"{sid[:-1]}区({sid[-1]})"
-    return f"{sid}区"
 
-def find_stage(sm, hsv):
-    h,w,_=sm.shape
-    S,V=hsv[:,:,1],hsv[:,:,2]
-    grey=((S<30)&(V>160)&(V<240)).astype(np.uint8)
-    grey[:int(h*0.10)]=0; grey[int(h*0.88):]=0
-    n,_,st,cen=cv2.connectedComponentsWithStats(grey,8)
-    best=None
-    for i in range(1,n):
-        x,y,ww,hh,a=st[i]
-        if a<w*h*0.008: continue
-        if ww/max(hh,1)>1.3 and math.hypot(cen[i][0]-w/2,cen[i][1]-h/2)<min(w,h)*0.3:
-            if best is None or a>best[0]:
-                best=(a,(int(x),int(y),int(ww),int(hh)),(float(cen[i][0]),float(cen[i][1])))
-    return best[1], best[2]
+def legend_colours(img):
+    """Median colour of the 7 legend swatches (bottom bar), left → right."""
+    H = img.shape[0]
+    y0, y1 = int(H * 0.925), int(H * 0.955)
+    row = cv2.medianBlur(img[y0:y1], 5)
+    hsv = cv2.cvtColor(row, cv2.COLOR_RGB2HSV)
+    m = ((hsv[:, :, 1] > 40) & (hsv[:, :, 2] > 120)).astype(np.uint8)
+    n, l, st, _ = cv2.connectedComponentsWithStats(m)
+    sw = [(st[i, 0], np.median(row[l == i], axis=0)) for i in range(1, n) if st[i, 4] > 0.3 * st[1:, 4].max()]
+    sw.sort(key=lambda t: t[0])
+    assert len(sw) == 7, f"legend swatches: {len(sw)}"
+    return np.array([c for _, c in sw], np.float32)
 
-def sold_band(sm, hsv, stage, legend_y):
-    h,w,_=sm.shape
-    H,S,V=hsv[:,:,0].astype(int),hsv[:,:,1].astype(int),hsv[:,:,2].astype(int)
-    sold=np.zeros((h,w),np.uint8); band=np.zeros((h,w),np.uint8)
-    names=list(WINDOWS)
-    for i,name in enumerate(names,1):
-        m=WINDOWS[name](H,S,V)
-        sold[m]=1; band[m]=i
-    sold[:int(h*0.05)]=0; sold[legend_y:]=0
-    sx,sy,sw,sh=stage
-    sold[sy+2:sy+sh-2, sx+2:sx+sw-2]=0
-    band[sold==0]=0
-    return sold, band, names
 
-def floor_faces(sm, hsv, stage, sold, band, names, cx, cy, A, B):
-    sx,sy,sw,sh=stage
-    core=cv2.morphologyEx(sold, cv2.MORPH_OPEN, np.ones((3,3),np.uint8))
-    n,lab=cv2.connectedComponents(core,8)
-    faces=[]
-    for i in range(1,n):
-        pix=lab==i
-        a=int(pix.sum())
-        if a<200: continue
-        ys,xs=np.where(pix)
-        px,py=float(xs.mean()),float(ys.mean())
-        votes=band[pix]; votes=votes[votes>0]
-        if votes.size==0: continue
-        bname=names[int(np.bincount(votes).argmax())-1]
-        in_h = (sx-0.42*sw <= px <= sx+sw+0.42*sw) and (sy-8 <= py <= sy+sh+8)
-        in_v = (sx-8 <= px <= sx+sw+8) and (sy-0.65*sh <= py <= sy+sh+0.65*sh)
-        rho=math.hypot((px-cx)/A,(py-cy)/B)
-        if not (in_h or in_v) or rho>0.72: continue
-        if bname not in ("red","orange","yellow"): continue
-        faces.append(dict(band=bname,tone=TONE[bname],area=a,cx=px,cy=py,pix=pix,rho=rho,ang=math.atan2(py-cy,px-cx)))
-    return faces
+def to_lab(rgb):
+    return cv2.cvtColor(np.clip(rgb, 0, 255).astype(np.uint8).reshape(-1, 1, 3), cv2.COLOR_RGB2LAB).reshape(-1, 3).astype(np.float32)
 
-def biggest(items,n):
-    return sorted(items,key=lambda f:-f["area"])[:n]
 
-def assign_floor(faces, stage, city):
-    sx,sy,sw,sh=stage
-    mapping={}
-    reds=[f for f in faces if f["band"]=="red"]
-    above=sorted(biggest([f for f in reds if f["cy"]<sy+0.15*sh],4), key=lambda f:f["cx"])
-    below=sorted(biggest([f for f in reds if f["cy"]>sy+sh-0.15*sh],4), key=lambda f:f["cx"])
-    if city=="ganzhou":
-        if len(above)==4:
-            for i,f in enumerate(above): mapping[id(f)]=("A4","A3","A2","A1")[i]
-        if len(below)==4:
-            for i,f in enumerate(below): mapping[id(f)]=("C1","C2","C3","C4")[i]
-        close_left,far_left=("B1","B2"),("B3","B4")
-        close_right,far_right=("D2","D1"),("D4","D3")
-    else:
-        if len(below)==4:
-            for i,f in enumerate(below): mapping[id(f)]=("A1","A2","A3","A4")[i]
-        if len(above)==4:
-            for i,f in enumerate(above): mapping[id(f)]=("C4","C3","C2","C1")[i]
-        close_left,far_left=("D1","D2"),("D3","D4")
-        close_right,far_right=("B2","B1"),("B4","B3")
-    used=set(mapping)
-    sides=[f for f in faces if id(f) not in used]
-    left=biggest([f for f in sides if f["cx"]<sx],4)
-    right=biggest([f for f in sides if f["cx"]>sx+sw],4)
-    def side(group, closer_higher_x, names_c, names_f):
-        if len(group)!=4:
-            print("  side count",len(group),"wanted 4"); return
-        mid=(min(f["cx"] for f in group)+max(f["cx"] for f in group))/2
-        if closer_higher_x:
-            close=[f for f in group if f["cx"]>=mid]; far=[f for f in group if f["cx"]<mid]
+def calibrate(sm, legend_lab, roi):
+    """Map shade of each legend colour. The printed top faces are lighter than the legend
+    swatches (same hue / chroma), so each tier centre is the median Lab of the map pixels
+    whose chroma (a, b) is closest to that swatch and that are not darker than the swatch."""
+    lab = cv2.cvtColor(sm, cv2.COLOR_RGB2LAB).astype(np.float32)
+    dab = np.stack([np.linalg.norm(lab[:, :, 1:] - c[1:], axis=2) for c in legend_lab])
+    a, dmin = dab.argmin(0), dab.min(0)
+    cen = []
+    for t, c in enumerate(legend_lab):
+        sel = roi & (a == t) & (dmin < 20) & (lab[:, :, 0] > c[0] - 10)
+        cen.append(np.median(lab[sel], axis=0) if sel.sum() > 500 else c)
+    return lab, np.array(cen, np.float32)
+
+
+def nearest_tier(rgb, centres):
+    lab = to_lab(np.array(rgb, np.float32).reshape(1, 3))[0]
+    d = np.linalg.norm(centres - lab, axis=1)
+    return int(d.argmin()), float(d.min())
+
+
+def classify(lab, centres, radius):
+    d = np.stack([np.linalg.norm(lab - c, axis=2) for c in centres])
+    cls = d.argmin(0)
+    cls[d.min(0) > radius] = -1
+    return cls
+
+
+def text_mask(sm, UP, boxes):
+    """Printed black labels / numbers: small dark components (+ their JPEG halo) whose centre
+    lies in an OCR text box. The dark background and the block borders are not included."""
+    hsv = cv2.cvtColor(sm, cv2.COLOR_RGB2HSV)
+    dark = (hsv[:, :, 2] < (75 if UP == 1 else 125)).astype(np.uint8)  # Kunming glyphs are JPEG-blurred grey
+    n, l, st, cen = cv2.connectedComponentsWithStats(dark, connectivity=8)
+    inbox = np.zeros(dark.shape, bool)
+    for x0, y0, x1, y1 in boxes:
+        inbox[max(0, int(y0) - UP):int(y1) + UP + 1, max(0, int(x0) - 4 * UP):int(x1) + 4 * UP + 1] = True
+    lim = 70 * UP
+    keep = np.zeros(n, np.uint8)
+    for i in range(1, n):
+        cx_, cy_ = int(cen[i][0]), int(cen[i][1])
+        keep[i] = st[i, 2] <= lim and st[i, 3] <= lim and (UP == 1 or inbox[cy_, cx_])
+    m = keep[l]
+    if UP > 1:
+        m &= inbox  # a glyph blurred into a border line: keep only its part inside the text box
+    return cv2.dilate(m, np.ones((2 * UP + 1, 2 * UP + 1), np.uint8))  # glyph + JPEG halo
+
+
+def ocr_texts(city, src, img, UP):
+    """Vision OCR of the whole map (tiles, two scales), cached under logs/."""
+    cache = Path(__file__).resolve().parent.parent / "logs" / f"ocr_{city}_{Path(src).stat().st_size}.json"
+    if cache.exists():
+        return [(t, c, tuple(b)) for t, c, b in json.load(open(cache))]
+    texts = ocr_tiles(img, 2.0 if UP == 1 else 1.0)
+    texts += ocr_tiles(img, 3.0 if UP == 1 else 1.6, tile=700, ov=180)
+    cache.parent.mkdir(exist_ok=True)
+    json.dump(texts, open(cache, "w"), ensure_ascii=False)
+    return texts
+
+
+def remove_text(sm, UP, boxes):
+    """Inpaint the printed labels so a label lying on a block edge does not bite glyph-shaped
+    notches into the traced outline."""
+    return cv2.inpaint(sm, text_mask(sm, UP, boxes), 4 * UP, cv2.INPAINT_TELEA)
+
+
+# ---------------------------------------------------------------- OCR
+def ocr_tiles(img, scale, tile=900, ov=200):
+    from ocrmac import ocrmac
+    H, W = img.shape[:2]
+    out = []
+    for ty in range(0, H, tile - ov):
+        for tx in range(0, W, tile - ov):
+            sub = img[ty:ty + tile, tx:tx + tile]
+            if sub.shape[0] < 40 or sub.shape[1] < 40:
+                continue
+            big = cv2.resize(sub, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC) if scale != 1 else sub
+            res = ocrmac.OCR(Image.fromarray(big), language_preference=["zh-Hans", "en-US"], recognition_level="accurate").recognize(px=True)
+            for t, c, (x0, y0, x1, y1) in res:
+                out.append((t, c, (tx + x0 / scale, ty + y0 / scale, tx + x1 / scale, ty + y1 / scale)))
+    return out
+
+
+def norm_label(city, t):
+    s = t.replace(" ", "").replace("（", "(").replace("）", ")")
+    s = re.sub(r"(?<=\d)[X×又]", "区", s)  # the boxed 区 glyph is sometimes read as X
+    if city == "ganzhou":
+        s = s.replace("O", "0").replace("o", "0").replace("I", "1").replace("l", "1")
+        m = re.search(r"([A-E])(\d{1,2}|2-[13])区", s)
+        if m:
+            num = m.group(2)
+            if num.isdigit() and int(num) > GZ_MAX[m.group(1)] and num[0] == "7":
+                num = "1" + num[1:]  # Vision reads the thin "1" as "7" (E17 → E77)
+            if num.isdigit() and int(num) > GZ_MAX[m.group(1)]:
+                return None
+            return f"{m.group(1)}{num}"
+        m = re.search(r"^([A-E])(\d{2})$", s)
+        if m and int(m.group(2)) <= GZ_MAX[m.group(1)]:
+            return f"{m.group(1)}{m.group(2)}"
+        m = re.search(r"([A-E])(\d{1,2}|2-[13])$", s)
+        return f"{m.group(1)}{m.group(2)}" if m and FLOOR_RE.match(m.group(1) + m.group(2)) else None
+    m = re.search(r"主席台(\d)区?", s)
+    if m:
+        return f"主席台{m.group(1)}"
+    s = s.replace("O", "0").replace("o", "0").replace("I", "1").replace("l", "1")
+    m = re.search(r"(\d{1,2})([AB8])区?\(?(上|下)", s)
+    if m:
+        return f"{m.group(1)}{'B' if m.group(2) == '8' else m.group(2)}{m.group(3)}"
+    m = re.search(r"([A-D])([1-4])区", s)
+    return f"{m.group(1)}{m.group(2)}" if m else None
+
+
+def is_excluded_text(t):
+    return "控" in t or "中" in t and "区" in t
+
+
+# Kunming stand labels are ~8 px tall in the only available bitmap, so Vision misreads many
+# digits (08B, 48B, 78B, 19B for 18B …). The stand blocks are therefore labelled by their
+# printed order around the bowl (checked block by block against the official image), and the
+# OCR reads are used as a cross-check. Order = decreasing screen angle starting at 9 o'clock.
+# 2A/11B/15A/25B are dark (obstructed) except a lit strip of seats along one edge; 3A/10B/16A/
+# 24B are partly dark (24B下's lit part is two pieces). 2B/11A/15B/25A are fully dark. Ring 下
+# has no 6/7 (主席台1–3) and no 13 (the B3/B4 side).
+KM_SEQ = {
+    "下": "1A 1B 2A 3A 3B 4A 4B 5A 5B 8A 8B 9A 9B 10A 10B 11B 12A 12B 14A 14B 15A 16A 16B 17A 17B 18A 18B 19A 19B 20A 20B 21A 21B 22A 22B 23A 23B 24A 24B 25B 26A 26B".split(),
+    "上": ("1A 1B 2A 3A 3B 4A 4B 5A 5B 6A 6B 7A 7B 8A 8B 9A 9B 10A 10B 11B 12A 12B 13A 13B 14A 14B 15A "
+          "16A 16B 17A 17B 18A 18B 19A 19B 20A 20B 21A 21B 22A 22B 23A 23B 24A 24B 25B 26A 26B").split(),
+}
+
+
+def kunming_sequence(comps, owner, excluded, X):
+    to_vb, polar, UP = X
+    info = {}
+    for ci, c in enumerate(comps):
+        x, y, w, h = c["bbox"]
+        Mo = cv2.moments(c["sub"], binaryImage=True)
+        gx, gy = to_vb(Mo["m10"] / Mo["m00"] + x, Mo["m01"] / Mo["m00"] + y)
+        rho, ang = polar(gx, gy)
+        cs, _ = cv2.findContours(c["sub"], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        u = math.degrees(ang - math.radians(178)) % 360
+        pol = [polar(*to_vb(p[0][0] + x, p[0][1] + y)) for p in max(cs, key=cv2.contourArea)]
+        us = [u + math.degrees((a - ang + math.pi) % (2 * math.pi) - math.pi) for _, a in pol]
+        rs = sorted(r for r, _ in pol)
+        info[ci] = dict(rho=rho, u=u, lo=min(us), hi=max(us), r0=rs[len(rs) // 10], r1=rs[-1 - len(rs) // 10], tier=c["tier"])
+    stand = [ci for ci, d in info.items() if d["rho"] > 0.7 and ci not in excluded and not str(owner.get(ci, "")).startswith("主席台")]
+    lav = [ci for ci, d in info.items() if d["rho"] > 0.7 and d["tier"] == TONES.index("lavender")]
+
+    def ov(a, b):
+        return min(a["hi"], b["hi"]) - max(a["lo"], b["lo"])
+
+    rings = {"下": [], "上": []}
+    for ci in stand:
+        d = info[ci]
+        if d["tier"] == TONES.index("lavender"):
+            ring = "下"
+        elif d["tier"] == TONES.index("green"):
+            inner_lav = any(info[j]["rho"] < d["rho"] and ov(info[j], d) > 0.3 * (d["hi"] - d["lo"]) for j in lav)
+            ring = "上" if inner_lav else "下"
         else:
-            close=[f for f in group if f["cx"]<=mid]; far=[f for f in group if f["cx"]>mid]
-        for col,names_ in ((close,names_c),(far,names_f)):
-            col=sorted(col,key=lambda f:f["cy"])
-            if len(col)==2:
-                mapping[id(col[0])]=names_[0]; mapping[id(col[1])]=names_[1]
-    side(left, True, close_left, far_left)
-    side(right, False, close_right, far_right)
-    return mapping
+            ring = "上"
+        rings[ring].append(ci)
+    agree, disagree = 0, []
+    for ring, cis in rings.items():
+        cis.sort(key=lambda ci: -info[ci]["u"])
+        secs = []
+        for ci in cis:
+            d = info[ci]
+            # same block: overlapping angular span, radial rows that do not overlap its cells
+            if (secs and ov(secs[-1], d) > 0.35 * min(d["hi"] - d["lo"], secs[-1]["hi"] - secs[-1]["lo"])
+                    and all(min(info[cj]["r1"], d["r1"]) - max(info[cj]["r0"], d["r0"]) < 0.3 * min(info[cj]["r1"] - info[cj]["r0"], d["r1"] - d["r0"])
+                            or comps[cj]["tier"] != d["tier"] for cj in secs[-1]["cells"])):
+                secs[-1]["cells"].append(ci)
+                secs[-1]["lo"], secs[-1]["hi"] = min(secs[-1]["lo"], d["lo"]), max(secs[-1]["hi"], d["hi"])
+            else:
+                secs.append(dict(lo=d["lo"], hi=d["hi"], cells=[ci]))
+        seq = KM_SEQ[ring]
+        if len(secs) != len(seq) or os.environ.get("KM_DEBUG"):
+            for sec in secs:
+                print(f"    {ring} {sec['lo']:.1f}-{sec['hi']:.1f}", [(TONES[comps[ci]["tier"]], comps[ci]["area"] // UP // UP, round(info[ci]["rho"], 3), round(info[ci]["lo"], 1), round(info[ci]["hi"], 1), owner.get(ci)) for ci in sec["cells"]])
+        assert len(secs) == len(seq), f"kunming ring {ring}: {len(secs)} lit sectors, expected {len(seq)}"
+        for sec, lb in zip(secs, seq):
+            sid = f"{lb}{ring}"
+            for ci in sec["cells"]:
+                if ci in owner:
+                    (agree := agree + 1) if owner[ci] == sid else disagree.append((owner[ci], sid))
+                owner[ci] = sid
+    print(f"  kunming stand labels by printed order: OCR agrees on {agree} cells, disagrees on {len(disagree)}: {disagree}")
 
-def ellipse_from_stands(sold, stage, cx, cy):
-    sx,sy,sw,sh=stage
-    side,end=int(0.36*sw),int(0.58*sh)
-    ys,xs=np.where(sold>0)
-    keep=~(((xs>=sx-side)&(xs<=sx+sw+side)&(ys>=sy-8)&(ys<=sy+sh+8))|((xs>=sx-8)&(xs<=sx+sw+8)&(ys>=sy-end)&(ys<=sy+sh+end)))
-    if keep.sum()<500: keep=np.ones(len(xs),bool)
-    bxs,bys=xs[keep],ys[keep]
-    A=float(np.percentile(np.abs(bxs-cx),99.4))
-    B=float(np.percentile(np.abs(bys-cy),99.4))
-    rho=np.hypot((bxs-cx)/A,(bys-cy)/B)
-    r_in=float(np.percentile(rho,1.5))
-    return A,B,r_in
 
-# ---------------- measured stand catalogs (eccentric degrees) ----------------
-# Angles were read from an eccentric-angle ruler (x = A t cos a, y = B t sin a)
-# overlaid on the official Damai bitmaps. 0° = right, 90° = bottom, ±180° = left,
-# -90° = top. a0→a1 is the shorter arc. 控台 / dark pockets / numbered strips are
-# omitted (no hotspot).
+# ---------------------------------------------------------------- main
+def run(city, src, out_dir):
+    cfg = CITY_CFG[city]
+    UP = cfg["up"]
+    full = np.array(Image.open(src).convert("RGB"))
+    img = cv2.resize(full, None, fx=UP, fy=UP, interpolation=cv2.INTER_CUBIC) if UP > 1 else full
+    H, W = img.shape[:2]
+    legend = legend_colours(img)
+    legend_lab = to_lab(legend)
+    sm = cv2.medianBlur(img, 5)
+    sm = cv2.bilateralFilter(sm, 7, 18, 5)
+    cx0, cy0, cx1, cy1 = [v * UP for v in cfg["crop"]]
+    roi = np.zeros((H, W), bool)
+    roi[cy0:int(H * 0.905), cx0:cx1] = True
+    texts = ocr_texts(city, src, img, UP)
+    sm = remove_text(sm, UP, [b for _, _, b in texts])
+    lab_sm, centres = calibrate(sm, legend_lab, roi)
+    cls = classify(lab_sm, centres, radius=RADIUS)
+    cls[~roi] = -1
 
-# t-bands measured on the same ruler (rho of the seating ellipse).
-GZ_T = dict(inner=(0.650, 0.755), midin=(0.765, 0.825), midout=(0.825, 0.868), outer=(0.868, 1.020))
+    # view-space helpers
+    k = cfg["k"] * UP
+    ox, oy = cfg["crop"][0] * UP, cfg["crop"][1] * UP
+    to_vb = lambda x, y: ((x - ox) / k, (y - oy) / k)
+    ecx, ecy, eA, eB = cfg["ellipse"]
 
-# (id, a0_deg, a1_deg, tone)
-GZ_INNER = [
-    ("B01", -148, -136, "lavender"),
-    ("A07", -136, -126, "lavender"),
-    ("A06", -126, -116, "lavender"),
-    ("A05", -116, -108, "lavender"),
-    ("A04", -108, -100, "lavender"),
-    ("A2-3", -100, -92, "lavender"),
-    # 控台 -92 to -82: no hotspot
-    ("A2-1", -82, -72, "lavender"),
-    ("A03", -72, -62, "lavender"),
-    ("A02", -62, -52, "lavender"),
-    ("A01", -52, -43, "lavender"),
-    ("E09", -43, -33, "lavender"),
-    ("E07", -24, -12, "green"),
-    ("E06", -10, 4, "green"),
-    ("E05", 4, 16, "green"),
-    ("E04", 16, 32, "green"),
-    ("E01", 38, 52, "lavender"),
-    ("C10", 52, 60, "lavender"),
-    ("C09", 60, 68, "lavender"),
-    ("C08", 68, 76, "lavender"),
-    ("C07", 76, 84, "lavender"),
-    ("C06", 84, 91, "lavender"),
-    ("C05", 91, 98, "lavender"),
-    ("C04", 98, 106, "lavender"),
-    ("C03", 106, 114, "lavender"),
-    ("C02", 114, 122, "lavender"),
-    ("C01", 122, 130, "lavender"),
-    ("B09", 130, 142, "lavender"),
-    ("B07", 156, 166, "green"),
-    ("B06", 166, 176, "green"),
-    ("B05", 176, 186, "green"),  # wraps past 180; handled below
-    ("B04", -174, -160, "green"),
-]
-# B05 listed as 176..186 which is 176..180 and -180..-174; we'll split in expander.
+    def polar(vx, vy):
+        dx, dy = (vx - ecx) / eA, (vy - ecy) / eB
+        return math.hypot(dx, dy), math.atan2(dy, dx)
 
-GZ_MIDIN = [
-    ("B16", -172, -160, "green"),
-    ("B15", 174, 186, "green"),
-    ("B14", 166, 174, "green"),
-    ("B13", 156, 166, "green"),
-    ("C19", 126, 132, "lavender"),
-    ("C18", 118, 126, "lavender"),
-    ("C17", 106, 114, "lavender"),
-    ("C16", 98, 106, "lavender"),
-    ("C15", 92, 98, "lavender"),
-    ("C14", 86, 92, "lavender"),
-    ("C13", 80, 86, "lavender"),
-    ("C12", 74, 80, "lavender"),
-    ("C11", 68, 74, "lavender"),
-    ("E16", 16, 32, "green"),
-    ("E15", 6, 16, "green"),
-    ("E14", -8, 6, "green"),
-    ("E13", -24, -10, "green"),
-]
+    # components per colour class
+    comps = []  # dict(mask, tier, area, bbox)
+    open_k = np.ones((3, 3), np.uint8)
+    min_area = 260 * UP * UP if city == "ganzhou" else 90 * UP * UP
+    for t in range(7):
+        m = (cls == t).astype(np.uint8)
+        m = cv2.morphologyEx(m, cv2.MORPH_OPEN, open_k)
+        n, l, st, _ = cv2.connectedComponentsWithStats(m, connectivity=4)
+        for i in range(1, n):
+            if st[i, 4] < min_area:
+                continue
+            x, y, w, h, _ = st[i]
+            sub = (l[y:y + h, x:x + w] == i).astype(np.uint8)
+            # fill holes (printed text) inside the band
+            cs, _ = cv2.findContours(sub, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            filled = np.zeros_like(sub)
+            cv2.drawContours(filled, cs, -1, 1, -1)
+            comps.append(dict(tier=t, bbox=(x, y, w, h), sub=filled, area=int(filled.sum())))
+    print(f"{city}: {len(comps)} colour components")
 
-GZ_MIDOUT = [
-    ("A21", -138, -128, "green"),
-    ("A20", -128, -122, "green"),
-    ("A08", -122, -116, "lavender"),
-    ("A09", -116, -110, "lavender"),
-    ("A19", -110, -104, "lavender"),
-    ("A18", -104, -96, "lavender"),
-    ("A17", -96, -88, "lavender"),
-    ("A16", -88, -80, "lavender"),
-    ("A15", -80, -72, "lavender"),
-    ("A10", -72, -66, "green"),
-    ("A14", -66, -60, "green"),
-    ("A11", -60, -54, "green"),
-    ("A13", -54, -48, "green"),
-    ("A12", -48, -42, "green"),
-    ("C20", 124, 132, "green"),
-    ("C21", 114, 122, "lavender"),
-    ("C22", 106, 114, "lavender"),
-    ("C23", 98, 106, "lavender"),
-    ("C24", 90, 98, "lavender"),
-    ("C25", 84, 90, "lavender"),
-    ("C26", 78, 84, "lavender"),
-    ("C27", 72, 78, "lavender"),
-    ("C28", 64, 72, "lavender"),
-]
+    lab_img = np.full((H, W), -1, np.int32)
+    for ci, c in enumerate(comps):
+        x, y, w, h = c["bbox"]
+        view = lab_img[y:y + h, x:x + w]
+        view[(c["sub"] > 0) & (view < 0)] = ci
 
-GZ_OUTER = [
-    ("B38", -148, -136, "blue"),
-    ("B35", -172, -160, "rose"),
-    ("B34", 162, 180, "rose"),
-    ("B31", 132, 142, "blue"),
-    ("A22", -136, -124, "blue"),
-    ("A23", -124, -114, "green"),
-    ("A24", -114, -106, "green"),
-    ("A25", -106, -97, "green"),
-    ("A26", -97, -90, "green"),
-    ("A27", -90, -82, "blue"),
-    ("A28", -82, -72, "blue"),
-    ("A29", -72, -62, "blue"),
-    ("A30", -62, -52, "blue"),
-    ("A31", -52, -44, "green"),
-    ("E31", -44, -34, "blue"),
-    ("E34", -22, -8, "rose"),
-    ("E35", 8, 22, "rose"),
-    ("E38", 38, 52, "blue"),
-    ("C29", 52, 62, "blue"),
-    ("C30", 62, 70, "blue"),
-    ("C31", 70, 78, "green"),
-    ("C32", 78, 86, "blue"),
-    ("C33", 86, 93, "blue"),
-    ("C34", 93, 101, "green"),
-    ("C35", 101, 109, "green"),
-    ("C36", 109, 117, "green"),
-    ("C37", 117, 125, "green"),
-    ("C38", 125, 133, "blue"),
-]
+    # cluster detections of the same printed text (tiles overlap, two OCR scales)
+    clusters = []  # [x0, y0, x1, y1, {label: conf}, n]
+    for t, conf, (x0, y0, x1, y1) in texts:
+        cxp, cyp = (x0 + x1) / 2, (y0 + y1) / 2
+        if not roi[min(int(cyp), H - 1), min(int(cxp), W - 1)]:
+            continue
+        lb = "#excl" if is_excluded_text(t) else norm_label(city, t)
+        if not lb:
+            continue
+        for c in clusters:
+            if abs((c[0] + c[2]) / 2 - cxp) < (y1 - y0) and abs((c[1] + c[3]) / 2 - cyp) < (y1 - y0) / 2:
+                c[4][lb] = c[4].get(lb, 0) + conf + 0.05
+                c[0], c[1], c[2], c[3] = min(c[0], x0), min(c[1], y0), max(c[2], x1), max(c[3], y1)
+                break
+        else:
+            clusters.append([x0, y0, x1, y1, {lb: conf + 0.05}])
+    found = {lb: (99.0, tuple(v * UP for v in box)) for lb, box in MANUAL_LABELS[city].items()}  # label -> (score, box)
+    excl_boxes = []
+    for x0, y0, x1, y1, d in clusters:
+        lb, sc = max(d.items(), key=lambda kv: kv[1])
+        if lb == "#excl":
+            excl_boxes.append((x0, y0, x1, y1))
+        elif lb not in found or found[lb][0] < sc:
+            found[lb] = (sc, (x0, y0, x1, y1))
 
-def expand_deg(a0, a1):
-    """Return (a0, a1) in radians, a1 = a0 + signed delta in (-π, π]. If the
-    listed span crosses ±180 (e.g. 176..186), split into a single wrapped arc
-    via 186-360 = -174."""
-    # normalize listed values that go past 180
-    def norm(d):
-        while d > 180: d -= 360
-        while d <= -180: d += 360
-        return d
-    a0, a1 = norm(a0), norm(a1)
-    r0, r1 = math.radians(a0), math.radians(a1)
-    return r0, r1
+    # ---- a printed label owns every lit cell its text box sits on: on the thin strips the
+    # label straddles the line between two cells of one 区; on two-price blocks it straddles
+    # the change of colour. Cells of the same colour are joined, other colours are bands.
+    def under(box):
+        x0, y0, x1, y1 = [int(round(v)) for v in box]
+        x0, y0, x1, y1 = max(0, x0 - 2 * UP), max(0, y0 - 2 * UP), x1 + 2 * UP, y1 + 2 * UP
+        area = (x1 - x0) * (y1 - y0)
+        bx = lab_img[y0:y1, x0:x1]
+        ids, cnt = np.unique(bx[bx >= 0], return_counts=True)
+        cxp, cyp = (x0 + x1) // 2, (y0 + y1) // 2
+        r = 3 * UP
+        cc = lab_img[cyp - r:cyp + r + 1, cxp - r:cxp + r + 1]
+        cc = np.unique(cc[cc >= 0])
+        share = {int(i): n / area for i, n in zip(ids, cnt)}
+        if len(cc):  # label printed on a lit cell: that cell, plus a cell it straddles into
+            c0 = int(max(cc, key=lambda i: share.get(int(i), 0)))
+            out = {c0: 1.0}
+            for i, sh in share.items():
+                if i != c0 and sh >= (0.25 if comps[i]["tier"] == comps[c0]["tier"] else 0.10):
+                    out[i] = sh
+            return out
+        # label printed on a line or on a dark (obstructed) part: cells it straddles, else the
+        # one lit cell it touches most (the block's unobstructed part)
+        out = {i: sh for i, sh in share.items() if sh >= 0.25}
+        if not out and share:
+            i, sh = max(share.items(), key=lambda kv: kv[1])
+            if sh >= 0.10:
+                out = {i: sh}
+                touch_only.append((i, round(sh, 3)))
+        return out
 
-def gz_stands():
-    out=[]
-    for ring, items in (("inner", GZ_INNER), ("midin", GZ_MIDIN), ("midout", GZ_MIDOUT), ("outer", GZ_OUTER)):
-        t0,t1=GZ_T[ring]
-        # midin+midout are both "mid" for 3D; keep t for 2D accuracy
-        kind_tier = "lower" if ring=="inner" else "upper" if ring=="outer" else "mid"
-        for sid,a0,a1,tone in items:
-            r0,r1=expand_deg(a0,a1)
-            out.append(dict(id=sid,tone=tone,a0=r0,a1=r1,t0=t0,t1=t1,kind="bowl",
-                            name=name_for(sid),tier=kind_tier))
-    return out
+    claim = {}  # ci -> (share, label)
+    touch_only = []
+    for lb, (sc, box) in list(found.items()) + [("#excl", (0, b)) for b in excl_boxes]:
+        for ci, sh in under(box).items():
+            if ci not in claim or claim[ci][0] < sh:
+                claim[ci] = (sh, lb)
+    excluded = {ci for ci, (sh, lb) in claim.items() if lb == "#excl"}
+    owner = {ci: lb for ci, (sh, lb) in claim.items() if lb != "#excl"}
 
-# Kunming: section-start landmarks (eccentric deg), interpolated. Numbers increase
-# toward decreasing angle (counterclockwise on the official image). 主席台 occupies
-# the lower-tier span of sections 6 and 7. 26B/1A boundary is at ±180°.
-KM_STARTS = [
-    # (deg, section number at this boundary)
-    (180.0, 1),
-    (166.0, 2),
-    (152.0, 3),
-    (138.0, 4),
-    (122.0, 5),
-    (104.0, 6),
-    (76.0, 8),   # end of 主席台 / start of 8; section 7 is inside 主席台
-    (62.0, 9),
-    (48.0, 10),
-    (34.0, 11),
-    (20.0, 12),
-    (7.0, 13),
-    (-7.0, 14),
-    (-22.0, 15),
-    (-38.0, 16),
-    (-52.0, 17),
-    (-66.0, 18),
-    (-80.0, 19),
-    (-94.0, 20),
-    (-108.0, 21),
-    (-122.0, 22),
-    (-136.0, 23),
-    (-150.0, 24),
-    (-162.0, 25),
-    (-171.0, 26),
-    (-180.0, 27),  # wraps to section 1
-]
+    # ---- a band without its own label joins the touching band of another price that has
+    # one (two-price blocks whose label sits wholly on one band)
+    ker = np.ones((9, 9) if UP == 1 else (15, 15), np.uint8)  # reaches across the blend between two price bands, not a block border
+    def touching(ci):
+        c = comps[ci]
+        x, y, w, h = c["bbox"]
+        pad = 6
+        X0, Y0 = max(0, x - pad), max(0, y - pad)
+        X1, Y1 = min(W, x + w + pad), min(H, y + h + pad)
+        m = np.zeros((Y1 - Y0, X1 - X0), np.uint8)
+        m[y - Y0:y - Y0 + h, x - X0:x - X0 + w] = c["sub"]
+        ring = cv2.dilate(m, ker) & (1 - m)
+        nb = lab_img[Y0:Y1, X0:X1][ring > 0]
+        ids, cnt = np.unique(nb[nb >= 0], return_counts=True)
+        return {int(i): int(n) for i, n in zip(ids, cnt) if i != ci}
 
-def lerp_starts(n):
-    """Start angle (deg) of section n (1..26) and of section 27 (= -180)."""
-    pts=KM_STARTS
-    if n<=1: return pts[0][0]
-    if n>=27: return pts[-1][0]
-    for (d0,n0),(d1,n1) in zip(pts, pts[1:]):
-        if n0<=n<=n1:
-            if n1==n0: return d0
-            return d0 + (d1-d0)*(n-n0)/(n1-n0)
-    return pts[-1][0]
+    joined = 0
+    for ci, c in enumerate(comps):
+        if ci in owner or ci in excluded:
+            continue
+        cand = [(n, j) for j, n in touching(ci).items() if j in owner and comps[j]["tier"] != c["tier"]]
+        if not cand:
+            continue
+        n, j = max(cand)
+        per = cv2.arcLength(max(cv2.findContours(c["sub"], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[0], key=cv2.contourArea), True)
+        if n >= 12 * UP and n >= 0.18 * per:
+            owner[ci] = owner[j]
+            joined += 1
 
-def km_tone(n, half, suffix):
-    # Official map: front inner (3–5, 8–11, 19–22 下, 主席台) purple; front 上 green;
-    # sides green/blue; corners pink. Read off the official bitmap.
-    if suffix=="下":
-        if n in {3,4,5,8,9,10,11,19,20,21,22}:
-            return "lavender"
-        if n in {12,13,14,15,16,23,24,25,26,1,2,17,18}:
-            if n in {13,14,15,25,26,1}:
-                return "green"  # lower corners often green under pink 上
-            return "green"
-        return "green"
-    # 上
-    if n in {5,6,7,8,9}:
-        return "green"
-    if n in {19,20,21}:
-        return "green"
-    if n in {14,15,25,26}:
-        return "rose"
-    if n==13 and half=="A":
-        return "rose"
-    if n==1 and half=="A":
-        return "rose"
-    if n in {2,3,4,10,11,12,16,17,18,22,23,24}:
-        return "blue"
-    if n in {13,14,15}:
-        return "blue" if half=="B" else "rose"
-    return "blue"
+    if city == "kunming":
+        kunming_sequence(comps, owner, excluded, X=(to_vb, polar, UP))
 
-def km_stands():
-    t_lo,t_up=(0.730, 0.872),(0.878, 1.030)
-    out=[]
-    for n in range(1,27):
-        a_hi=math.radians(lerp_starts(n))      # clockwise edge (start)
-        a_lo=math.radians(lerp_starts(n+1))    # ccw edge (end); decreasing
-        # A is first going ccw (decreasing angle), then B
-        mid_deg=(lerp_starts(n)+lerp_starts(n+1))/2
-        # wrap-safe midpoint in decreasing direction
-        d0,d1=lerp_starts(n),lerp_starts(n+1)
-        da=d1-d0
-        # d1 is more negative (or wrap at -180)
-        mid=math.radians(d0+da/2)
-        halves=[("A", a_hi, mid),("B", mid, a_lo)]
-        for half,a0,a1 in halves:
-            for suffix, (t0,t1), tier in (("下", t_lo, "lower"), ("上", t_up, "upper")):
-                if suffix=="下" and n in (6,7):
-                    continue
-                sid=f"{n}{half}{suffix}"
-                out.append(dict(id=sid,tone=km_tone(n,half,suffix),a0=a0,a1=a1,t0=t0,t1=t1,
-                                kind="bowl",name=name_for(sid),tier=tier))
-    # 主席台 1,2,3 split 6+7 lower, left to right = decreasing angle
-    a0=math.radians(lerp_starts(6)); a1=math.radians(lerp_starts(8))
-    for i,sid in enumerate(("主席台1","主席台2","主席台3")):
-        # interpolate in radians along the shorter (decreasing) arc
-        da=(a1-a0+math.pi)%(2*math.pi)-math.pi
-        out.append(dict(id=sid,tone="lavender",
-                        a0=a0+da*(i/3), a1=a0+da*((i+1)/3),
-                        t0=t_lo[0], t1=t_lo[1], kind="bowl",
-                        name=name_for(sid), tier="lower"))
-    return out
+    no_cells = sorted(lb for lb in found if lb not in owner.values())
+    if os.environ.get("DUMP_CELLS"):
+        dump = []
+        for ci, c in enumerate(comps):
+            x, y, w, h = c["bbox"]
+            Mo = cv2.moments(c["sub"], binaryImage=True)
+            gx, gy = to_vb(Mo["m10"] / Mo["m00"] + x, Mo["m01"] / Mo["m00"] + y)
+            r_, a_ = polar(gx, gy)
+            cs_, _ = cv2.findContours(c["sub"], cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            angs_ = [a_ + (polar(*to_vb(p[0][0] + x, p[0][1] + y))[1] - a_ + math.pi) % (2 * math.pi) - math.pi for p in max(cs_, key=cv2.contourArea)]
+            dump.append(dict(ci=ci, tier=c["tier"], area=c["area"] / UP / UP, gx=round(gx, 1), gy=round(gy, 1), rho=round(r_, 3), ang=round(math.degrees(a_), 1),
+                             a0=round(math.degrees(min(angs_)), 1), a1=round(math.degrees(max(angs_)), 1), owner=owner.get(ci), excl=ci in excluded))
+        json.dump(dict(cells=dump, found={lb: [sc, [v / UP for v in b]] for lb, (sc, b) in found.items()}), open(os.environ["DUMP_CELLS"], "w"), ensure_ascii=False, indent=0)
+    units = {}  # label -> {tier: [ci]}
+    for ci, lb in owner.items():
+        units.setdefault(lb, {}).setdefault(comps[ci]["tier"], []).append(ci)
 
-def export(city, full, sc, cx, cy, A, B, r_in, stage, floor_faces, floor_map, stands, out_dir, dbg):
-    FH,FW,_=full.shape
-    pad_x,pad_y=30,24
-    x0=max(0,int((cx-A)/sc)-pad_x)
-    y0=max(0,int((cy-B)/sc)-pad_y)
-    x1=min(FW,int((cx+A)/sc)+pad_x)
-    y1=FH
-    img=full[y0:y1,x0:x1].copy()
-    hsv=cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
-    h,w,_=img.shape
-    dmask=np.zeros((h,w),np.uint8)
-    dmask[:int(h*0.16),:int(w*0.14)]=255
-    letter=((hsv[:,:,2]>110)&(hsv[:,:,1]<40)).astype(np.uint8)*255
-    dmask=cv2.bitwise_and(dmask,letter)
-    ecx,ecy,eA,eB=(cx/sc)-x0,(cy/sc)-y0,A/sc,B/sc
-    yy,xx=np.ogrid[:h,:w]
-    inside=((xx-ecx)/max(eA,1))**2+((yy-ecy)/max(eB,1))**2 <= 1.06**2
-    dmask[inside]=0
-    if dmask.sum()>200:
-        dmask=cv2.dilate(dmask,np.ones((5,5),np.uint8)); dmask[inside]=0
-        img=cv2.inpaint(img,dmask,5,cv2.INPAINT_TELEA)
-    bw,bh=x1-x0,y1-y0
-    k=bw/820.0
-    out_w,out_h=int(bw/k*2),int(bh/k*2)
-    canvas=cv2.resize(img,(out_w,out_h),interpolation=cv2.INTER_AREA)
-    out_dir.mkdir(parents=True, exist_ok=True)
-    Image.fromarray(canvas).save(out_dir/f"{city}_damai_map.webp", quality=88, method=6)
+    def unit_mask(cis):
+        x0 = min(comps[ci]["bbox"][0] for ci in cis); y0 = min(comps[ci]["bbox"][1] for ci in cis)
+        x1 = max(comps[ci]["bbox"][0] + comps[ci]["bbox"][2] for ci in cis)
+        y1 = max(comps[ci]["bbox"][1] + comps[ci]["bbox"][3] for ci in cis)
+        pad = 8 * UP
+        X0, Y0 = max(0, x0 - pad), max(0, y0 - pad)
+        m = np.zeros((y1 - Y0 + pad, x1 - X0 + pad), np.uint8)
+        for ci in cis:
+            x, y, w, h = comps[ci]["bbox"]
+            m[y - Y0:y - Y0 + h, x - X0:x - X0 + w] |= comps[ci]["sub"]
+        # 1 px inset so the simplified outlines of two touching price bands never overlap
+        m = cv2.erode(m, cv2.getStructuringElement(cv2.MORPH_CROSS, (3, 3)))
+        n, lab_ = cv2.connectedComponents(m)
+        parts = [(lab_ == i).astype(np.uint8) for i in range(1, n) if (lab_ == i).sum() >= 40 * UP * UP]
+        if len(parts) > 1:  # bridge the printed line between two cells of one 区 (gap pixels only)
+            reach = np.ones((6 * UP + 1, 6 * UP + 1), np.uint8)
+            dil = [cv2.dilate(pm, reach) for pm in parts]
+            for i in range(len(parts)):
+                for j in range(i + 1, len(parts)):
+                    m |= dil[i] & dil[j]
+        cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+        filled = np.zeros_like(m)
+        cv2.drawContours(filled, cs, -1, 1, -1)
+        return X0, Y0, filled
 
-    def to_vb(wx,wy):
-        return ((wx/sc)-x0)/k, ((wy/sc)-y0)/k
+    # ---- export
+    hotspots, meta, lab_pos = {}, {}, {}
+    eps = 0.5 * k / 2  # 0.5 px of the 2× webp, in work px
+    tiers = cfg["tiers"]
+    split_cells = []
+    for lb, bands in units.items():
+        prim_tier = min(bands)
+        for tier_i, cis in sorted(bands.items()):
+            X0, Y0, um = unit_mask(cis)
+            med = np.median(img[Y0:Y0 + um.shape[0], X0:X0 + um.shape[1]][um > 0], axis=0)
+            st_i, st_d = nearest_tier(med, centres)
+            sid = lb if tier_i == prim_tier else f"{lb}-{PRICES[st_i]}"
+            cs, _ = cv2.findContours(um, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            cs = sorted(cs, key=cv2.contourArea, reverse=True)
+            cs = [c_ for c_ in cs if cv2.contourArea(c_) >= max(40 * UP * UP, 0.03 * cv2.contourArea(cs[0]))]  # bridge crumbs
+            if len(cs) > 1:
+                split_cells.append((sid, [int(cv2.contourArea(c_)) // UP // UP for c_ in cs]))
+            subpaths, allpts = [], []
+            for cnt in cs:
+                ap = cv2.approxPolyDP(cnt, eps, True)
+                pts = [to_vb(float(p[0][0]) + X0, float(p[0][1]) + Y0) for p in ap]
+                allpts += pts
+                subpaths.append("M" + "L".join(f"{px:.2f},{py:.2f}" for px, py in pts) + "Z")
+            hotspots[sid] = "".join(subpaths)
+            Mo = cv2.moments(um, binaryImage=True)
+            gx, gy = to_vb(Mo["m10"] / Mo["m00"] + X0, Mo["m01"] / Mo["m00"] + Y0)
+            lab_pos[sid] = [round(gx, 1), round(gy, 1)]
+            rho_c, ang_c = polar(gx, gy)
+            floor = bool(FLOOR_RE.match(lb))
+            if city == "kunming" and not floor and not lb.startswith("主席台"):
+                base_name = f"{lb[:-1]}区({lb[-1]})"
+            else:
+                base_name = f"{lb}区"
+            name = base_name if sid == lb else f"{base_name}·¥{PRICES[st_i]}"
+            m = dict(tone=TONES[st_i], kind="floor" if floor else "bowl", name=name, price=PRICES[st_i],
+                     sampled=[int(v) for v in med], dE=round(st_d, 1), ang=round(ang_c, 4), rho=round(rho_c, 4))
+            if sid != lb:
+                m["base"] = lb
+            rhos, angs = [], []
+            for px, py in allpts:
+                r, a_ = polar(px, py)
+                rhos.append(r); angs.append(ang_c + (a_ - ang_c + math.pi) % (2 * math.pi) - math.pi)
+            m.update(t0=round(min(rhos), 4), t1=round(max(rhos), 4), a0=round(min(angs), 4), a1=round(max(angs), 4))
+            if floor:
+                m["area"] = int(um.sum())
+            else:
+                tier = min(tiers, key=lambda key: 0 if tiers[key][0] <= rho_c <= tiers[key][1] else min(abs(rho_c - tiers[key][0]), abs(rho_c - tiers[key][1])))
+                ti, to = tiers[tier]
+                m["tier"] = tier
+                m["d0"] = round(min(max((m["t0"] - ti) / (to - ti), 0.0), 0.95), 3)
+                m["d1"] = round(max(min((m["t1"] - ti) / (to - ti), 1.0), m["d0"] + 0.05), 3)
+            meta[sid] = m
+    secondary = [sid for sid in meta if "base" in meta[sid]]
+    labels = owner
 
-    hotspots={}; labels={}; meta={}
-    for f in floor_faces:
-        sid=floor_map.get(id(f))
-        if not sid: continue
-        m=cv2.morphologyEx(f["pix"].astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5,5),np.uint8))
-        cs,_=cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        parts=[]
-        for c in cs:
-            if cv2.contourArea(c)<20: continue
-            c=cv2.approxPolyDP(c,1.5,True)
-            pts=[to_vb(float(p[0][0]), float(p[0][1])) for p in c]
-            parts.append("M"+"L".join(f"{x:.1f},{y:.1f}" for x,y in pts)+"Z")
-        hotspots[sid]="".join(parts)
-        lx,ly=to_vb(f["cx"],f["cy"])
-        labels[sid]=[round(lx,1),round(ly,1)]
-        meta[sid]=dict(tone=f["tone"],kind="floor",name=name_for(sid),price=PRICE[f["tone"]],
-                       ang=round(f["ang"],4),rho=round(f["rho"],4))
-    vcx,vcy=to_vb(cx,cy)
-    vA,vB=(A/sc)/k,(B/sc)/k
-    for s in stands:
-        def pt(a,t):
-            return to_vb(cx + A*t*math.cos(a), cy + B*t*math.sin(a))
-        a0,a1,t0,t1=s["a0"],s["a1"],s["t0"],s["t1"]
-        da=(a1-a0+math.pi)%(2*math.pi)-math.pi
-        n=10
-        pts=[pt(a0+da*i/n, t0) for i in range(n+1)]
-        pts+=[pt(a0+da*i/n, t1) for i in range(n,-1,-1)]
-        hotspots[s["id"]]="M"+"L".join(f"{x:.1f},{y:.1f}" for x,y in pts)+"Z"
-        mid_a=a0+da/2; mid_t=(t0+t1)/2
-        lx,ly=pt(mid_a, mid_t)
-        labels[s["id"]]=[round(lx,1),round(ly,1)]
-        meta[s["id"]]=dict(tone=s["tone"],kind="bowl",name=s["name"],price=PRICE[s["tone"]],
-                           ang=round(mid_a,4),rho=round(mid_t,4),t0=round(t0,4),t1=round(t1,4),
-                           a0=round(a0,4),a1=round(a1,4),tier=s.get("tier","mid"))
-    sx,sy,sw,sh=stage
-    stx0,sty0=to_vb(sx,sy); stx1,sty1=to_vb(sx+sw,sy+sh)
-    payload=dict(
-        source=SOURCES[city],
-        viewBox=[0,0,round(bw/k,2),round(bh/k,2)],
-        stage={"x0":stx0,"y0":sty0,"x1":stx1,"y1":sty1},
-        ellipse={"cx":round(vcx,2),"cy":round(vcy,2),"A":round(vA,2),"B":round(vB,2),"innerRho":round(r_in,4)},
+    # floor bands: depth fraction of each band in its block (for the 3D split)
+    for sid, m in meta.items():
+        if m["kind"] == "floor" and "base" in m:
+            b = meta[m["base"]]
+            m["frac"] = round(m["area"] / (m["area"] + b["area"]), 3)
+
+    cw, ch = (cfg["crop"][2] - cfg["crop"][0]), (cfg["crop"][3] - cfg["crop"][1])
+    payload = dict(
+        source=cfg["source"],
+        viewBox=[0, 0, round(cw / cfg["k"], 2), round(ch / cfg["k"], 2)],
+        ellipse=dict(cx=ecx, cy=ecy, A=eA, B=eB),
+        legend={str(p): [int(v) for v in c] for p, c in zip(PRICES, legend)},
+        mapShadeLab={str(p): [round(float(v), 1) for v in c] for p, c in zip(PRICES, centres)},
         hotspots=dict(sorted(hotspots.items())),
-        labels=labels,
+        labels=lab_pos,
         meta=meta,
     )
-    json.dump(payload, open(out_dir/f"{city}DamaiHotspots.json","w"), ensure_ascii=False, indent=0)
-    print("hotspots",len(hotspots),"floor",sum(1 for m in meta.values() if m["kind"]=="floor"),
-          "bowl",sum(1 for m in meta.values() if m["kind"]=="bowl"))
-    print("wrote", out_dir/f"{city}_damai_map.webp", canvas.shape[1],"x",canvas.shape[0])
-    if dbg:
-        dbg.mkdir(parents=True, exist_ok=True)
-        vis=(canvas*0.55).astype(np.uint8)
-        vw,vh=payload["viewBox"][2],payload["viewBox"][3]
-        sxv,syv=out_w/vw,out_h/vh
-        rng=np.random.default_rng(3)
-        for sid,path in payload["hotspots"].items():
-            col=tuple(int(c) for c in rng.integers(70,255,3))
-            for part in path.split("Z"):
-                if not part: continue
-                pts=np.array([[float(x)*sxv,float(y)*syv] for x,y in (xy.split(",") for xy in part[1:].split("L"))], np.int32)
-                cv2.polylines(vis,[pts],True,col,1)
-            if sid in labels:
-                lx,ly=labels[sid]
-                cv2.putText(vis,sid,(int(lx*sxv)-10,int(ly*syv)+4),cv2.FONT_HERSHEY_SIMPLEX,0.32,(255,255,0),1,cv2.LINE_AA)
-        Image.fromarray(vis).save(dbg/f"{city}_hotspots_debug.png")
-        # face crops
-        H,W=vis.shape[:2]
-        Image.fromarray(vis[:int(H*0.36), int(W*0.22):int(W*0.78)]).convert("RGB").save(dbg/f"{city}_v_topmid.jpg", quality=88)
-        Image.fromarray(vis[int(H*0.64):, int(W*0.18):int(W*0.82)]).convert("RGB").save(dbg/f"{city}_v_botmid.jpg", quality=88)
-        Image.fromarray(vis[int(H*0.15):int(H*0.85), :int(W*0.34)]).convert("RGB").save(dbg/f"{city}_v_left.jpg", quality=88)
-        Image.fromarray(vis[int(H*0.15):int(H*0.85), int(W*0.66):]).convert("RGB").save(dbg/f"{city}_v_right.jpg", quality=88)
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    json.dump(payload, open(out_dir / f"{city}DamaiHotspots.json", "w"), ensure_ascii=False, indent=0)
+    unl = [(comps[ci]["tier"], comps[ci]["bbox"]) for ci in range(len(comps)) if ci not in owner and ci not in excluded]
+    print(f"  hotspots {len(hotspots)} (floor {sum(m['kind'] == 'floor' for m in meta.values())}, price bands {len(secondary)}, joined by touch {joined}); excluded cells {len(excluded)}; unlabelled lit cells {len(unl)}")
+    print("  labels with no lit cell (obstructed / not on sale):", no_cells)
+    print("  multi-part hotspots:", split_cells)
+    print("  labels on a dark part that took the lit cell they touch:", sorted((owner.get(i, "?"), sh) for i, sh in touch_only))
+    for t, bb in unl:
+        vx, vy = to_vb(bb[0] + bb[2] / 2, bb[1] + bb[3] / 2)
+        print(f"    unlabelled {TONES[t]} @view ({vx:.0f},{vy:.0f}) size {bb[2] / k:.0f}x{bb[3] / k:.0f}")
     return payload
 
-def run(city):
-    full=np.array(Image.open(SRC).convert("RGB"))
-    FH,FW,_=full.shape
-    sc=1.0 if city=="ganzhou" else 2.0
-    sm=cv2.resize(full,(int(FW*sc),int(FH*sc)), interpolation=cv2.INTER_LINEAR if sc>1 else cv2.INTER_AREA)
-    sm=cv2.bilateralFilter(sm,5,20,7)
-    h,w,_=sm.shape
-    hsv=cv2.cvtColor(sm, cv2.COLOR_RGB2HSV)
-    stage,(cx,cy)=find_stage(sm,hsv)
-    sold,band,names=sold_band(sm,hsv,stage,int(h*0.90))
-    A,B,r_in=ellipse_from_stands(sold,stage,cx,cy)
-    print(f"{city}: {w}x{h} sc={sc} stage={stage} c=({cx:.1f},{cy:.1f}) AB=({A:.1f},{B:.1f}) r_in={r_in:.3f}")
-    ff=floor_faces(sm,hsv,stage,sold,band,names,cx,cy,A,B)
-    fmap=assign_floor(ff,stage,city)
-    print("  floor", sorted(fmap[id(f)] for f in ff if id(f) in fmap))
-    stands = gz_stands() if city=="ganzhou" else km_stands()
-    export(city, full, sc, cx, cy, A, B, r_in, stage, ff, fmap, stands, OUT, DBG)
 
-if CITY not in ("ganzhou","kunming"):
-    sys.exit("city?")
-run(CITY)
+if __name__ == "__main__":
+    run(sys.argv[1], sys.argv[2], sys.argv[3])

@@ -1,5 +1,5 @@
 {
- "at": "2026-11-18T05:53:37.172Z",
+ "at": "2026-11-18T06:58:22.551Z",
  "report": {
   "wuxi": {
    "mascots": [
@@ -622,31 +622,31 @@
      }
     }
    ],
-   "rays": 2719,
+   "rays": 4051,
    "groups": {
     "Bxx": {
-     "sections": 14,
-     "rays": 334,
+     "sections": 27,
+     "rays": 647,
      "hits": 0
     },
     "Axx": {
-     "sections": 33,
-     "rays": 797,
+     "sections": 43,
+     "rays": 1043,
      "hits": 0
     },
     "Exx": {
-     "sections": 14,
-     "rays": 338,
+     "sections": 29,
+     "rays": 693,
      "hits": 0
     },
     "Cxx": {
-     "sections": 38,
-     "rays": 898,
+     "sections": 48,
+     "rays": 1148,
      "hits": 0
     },
     "floor": {
-     "sections": 16,
-     "rays": 352,
+     "sections": 24,
+     "rays": 520,
      "hits": 0
     }
    },
@@ -655,7 +655,15 @@
      "rays": 25,
      "hits": 0
     },
+    "A4-1517": {
+     "rays": 21,
+     "hits": 0
+    },
     "A3": {
+     "rays": 21,
+     "hits": 0
+    },
+    "A3-1517": {
      "rays": 21,
      "hits": 0
     },
@@ -663,15 +671,31 @@
      "rays": 21,
      "hits": 0
     },
+    "A2-1517": {
+     "rays": 21,
+     "hits": 0
+    },
     "A1": {
      "rays": 25,
+     "hits": 0
+    },
+    "A1-1517": {
+     "rays": 21,
      "hits": 0
     },
     "C1": {
      "rays": 25,
      "hits": 0
     },
+    "C1-1517": {
+     "rays": 21,
+     "hits": 0
+    },
     "C2": {
+     "rays": 21,
+     "hits": 0
+    },
+    "C2-1517": {
      "rays": 21,
      "hits": 0
     },
@@ -679,8 +703,16 @@
      "rays": 21,
      "hits": 0
     },
+    "C3-1517": {
+     "rays": 21,
+     "hits": 0
+    },
     "C4": {
      "rays": 25,
+     "hits": 0
+    },
+    "C4-1517": {
+     "rays": 21,
      "hits": 0
     },
     "B1": {
@@ -844,61 +876,61 @@
      }
     }
    ],
-   "rays": 2795,
+   "rays": 3867,
    "groups": {
-    "1xx": {
-     "sections": 44,
-     "rays": 1036,
+    "2xx": {
+     "sections": 42,
+     "rays": 994,
      "hits": 0
     },
-    "2xx": {
-     "sections": 32,
-     "rays": 760,
+    "1xx": {
+     "sections": 56,
+     "rays": 1356,
      "hits": 0
     },
     "3xx": {
-     "sections": 4,
-     "rays": 100,
+     "sections": 6,
+     "rays": 150,
      "hits": 0
     },
     "4xx": {
-     "sections": 4,
-     "rays": 92,
+     "sections": 6,
+     "rays": 150,
      "hits": 0
     },
     "5xx": {
-     "sections": 4,
-     "rays": 100,
-     "hits": 0
-    },
-    "6xx": {
-     "sections": 2,
-     "rays": 46,
-     "hits": 0
-    },
-    "7xx": {
-     "sections": 2,
-     "rays": 46,
-     "hits": 0
-    },
-    "8xx": {
-     "sections": 4,
-     "rays": 100,
-     "hits": 0
-    },
-    "9xx": {
-     "sections": 4,
-     "rays": 100,
+     "sections": 6,
+     "rays": 146,
      "hits": 0
     },
     "主xx": {
      "sections": 3,
-     "rays": 63,
+     "rays": 71,
+     "hits": 0
+    },
+    "6xx": {
+     "sections": 4,
+     "rays": 92,
+     "hits": 0
+    },
+    "7xx": {
+     "sections": 4,
+     "rays": 92,
+     "hits": 0
+    },
+    "9xx": {
+     "sections": 6,
+     "rays": 150,
+     "hits": 0
+    },
+    "8xx": {
+     "sections": 6,
+     "rays": 146,
      "hits": 0
     },
     "floor": {
-     "sections": 16,
-     "rays": 352,
+     "sections": 24,
+     "rays": 520,
      "hits": 0
     }
    },
@@ -907,7 +939,15 @@
      "rays": 25,
      "hits": 0
     },
+    "C4-1517": {
+     "rays": 21,
+     "hits": 0
+    },
     "C3": {
+     "rays": 21,
+     "hits": 0
+    },
+    "C3-1517": {
      "rays": 21,
      "hits": 0
     },
@@ -915,15 +955,31 @@
      "rays": 21,
      "hits": 0
     },
+    "C2-1517": {
+     "rays": 21,
+     "hits": 0
+    },
     "C1": {
      "rays": 25,
+     "hits": 0
+    },
+    "C1-1517": {
+     "rays": 21,
      "hits": 0
     },
     "A1": {
      "rays": 25,
      "hits": 0
     },
+    "A1-1517": {
+     "rays": 21,
+     "hits": 0
+    },
     "A2": {
+     "rays": 21,
+     "hits": 0
+    },
+    "A2-1517": {
      "rays": 21,
      "hits": 0
     },
@@ -931,8 +987,16 @@
      "rays": 21,
      "hits": 0
     },
+    "A3-1517": {
+     "rays": 21,
+     "hits": 0
+    },
     "A4": {
      "rays": 25,
+     "hits": 0
+    },
+    "A4-1517": {
+     "rays": 21,
      "hits": 0
     },
     "D1": {

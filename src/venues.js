@@ -304,18 +304,48 @@ function sideBlocks(closeIds, farIds, closeTone, farTone, xSign) {
   return out;
 }
 
-const gzFloor = [
-  ...endBlocks(["A4", "A3", "A2", "A1"], "red", -1),
-  ...endBlocks(["C1", "C2", "C3", "C4"], "red", +1),
-  ...sideBlocks(["B1", "B2"], ["B3", "B4"], "peach", "yellow", -1),
-  ...sideBlocks(["D2", "D1"], ["D4", "D3"], "peach", "yellow", +1),
-];
-const kmFloor = [
-  ...endBlocks(["C4", "C3", "C2", "C1"], "red", -1),
-  ...endBlocks(["A1", "A2", "A3", "A4"], "red", +1),
-  ...sideBlocks(["D1", "D2"], ["D3", "D4"], "peach", "yellow", -1),
-  ...sideBlocks(["B2", "B1"], ["B4", "B3"], "peach", "yellow", +1),
-];
+// Floor tones come from the colour sampled inside each traced Damai block. A block printed in
+// two prices (e.g. A3区: red rows + peach rows) is split along its depth: the second band
+// ("A3-1517") takes its traced area share on the side the map prints it (farther from / nearer to the stage).
+function damaiFloor(blocks, hot) {
+  const cy = hot.ellipse.cy, out = [];
+  for (const b of blocks) {
+    const m = hot.meta[b.id];
+    if (!m) continue;
+    const [[x0, z0], , [x1, z1]] = b.points;
+    const band = Object.entries(hot.meta).find(([, v]) => v.kind === "floor" && v.base === b.id);
+    if (!band) {
+      out.push(floorBlock(b.id, m.tone, x0, z0, x1, z1));
+      continue;
+    }
+    const [bid, bm] = band;
+    const near = Math.abs(z0) < Math.abs(z1) ? z0 : z1, far = near === z0 ? z1 : z0;
+    const bandFar = Math.abs(hot.labels[bid][1] - cy) > Math.abs(hot.labels[b.id][1] - cy);
+    const zs = near + (far - near) * (bandFar ? 1 - bm.frac : bm.frac);
+    const [pNear, pFar] = bandFar ? [[b.id, m], [bid, bm]] : [[bid, bm], [b.id, m]];
+    out.push(floorBlock(pNear[0], pNear[1].tone, x0, near, x1, zs, pNear[1].name), floorBlock(pFar[0], pFar[1].tone, x0, zs, x1, far, pFar[1].name));
+  }
+  return out;
+}
+
+const gzFloor = damaiFloor(
+  [
+    ...endBlocks(["A4", "A3", "A2", "A1"], "red", -1),
+    ...endBlocks(["C1", "C2", "C3", "C4"], "red", +1),
+    ...sideBlocks(["B1", "B2"], ["B3", "B4"], "peach", "yellow", -1),
+    ...sideBlocks(["D2", "D1"], ["D4", "D3"], "peach", "yellow", +1),
+  ],
+  gzHot,
+);
+const kmFloor = damaiFloor(
+  [
+    ...endBlocks(["C4", "C3", "C2", "C1"], "red", -1),
+    ...endBlocks(["A1", "A2", "A3", "A4"], "red", +1),
+    ...sideBlocks(["D1", "D2"], ["D3", "D4"], "peach", "yellow", -1),
+    ...sideBlocks(["B2", "B1"], ["B4", "B3"], "peach", "yellow", +1),
+  ],
+  kmHot,
+);
 
 function sectorPoints(t, a0, a1, d0, d1) {
   const wrap = (x) => ((x + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
@@ -331,7 +361,9 @@ function bowlSections(hot, tiers) {
     if (m.kind !== "bowl") continue;
     const t = tiers[m.tier];
     if (!t) continue;
-    const d0 = 0.08, d1 = 0.92, dm = 0.5, th = m.ang;
+    // Angular span (a0..a1, centroid angle) and depth band (d0..d1 within the tier) are the
+    // traced Damai polygon's own extent about the map ellipse.
+    const d0 = m.d0 ?? 0.08, d1 = m.d1 ?? 0.92, dm = (d0 + d1) / 2, th = m.ang;
     const at = (d) => [t.i[0] + (t.o[0] - t.i[0]) * d, t.i[1] + (t.o[1] - t.i[1]) * d];
     const [ra, rb] = at(dm);
     const x = ra * Math.cos(th), z = rb * Math.sin(th);
