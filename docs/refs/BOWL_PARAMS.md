@@ -148,3 +148,60 @@ Readable from the diagram (verify labels by eye):
 - Some sections behind stage marked closed / restricted view
 
 This closes the seat-map row for broker 贴脸 / 黄金角 links. It does **not** fill plan size, top-row height, or rake — those remain UNKNOWN for remesh.
+
+## Ganzhou · 赣州市全民健身中心体育场
+
+| Param | Value | Source | Status |
+|-------|-------|--------|--------|
+| Outer plan (长轴 × 短轴) | 307 m × 297 m | [G1][G2] 蓉江新区发布, steel-roof closure 26 Dec 2022 | CITED |
+| Steel roof, max height | 59.7 m | [G1][G2][G3][G4] | CITED |
+| Steel roof, inward cantilever | 39 m | [G1][G2][G3][G4] | CITED |
+| Building height (conflicting datum) | 49 m | Baidu Baike “建筑高度49米” | NEEDS_CONFIRM vs 59.7 m (likely different elements) |
+| Capacity | 40,000 fixed + 10,000 movable; 4.5万 commonly cited; design up to 5万 | [G1][G2] | CITED |
+| Track | 400 m Class I | [G5] 金陵体育 | CITED |
+| Site / building area | 13.53万 m² / 14.02万 m² | [G1][G2] | CITED |
+| Infield / track plan (3D) | track outer half-axes [88.155, 45.96] m; stand inner = track + 3 m apron | Standard 400 m track (straights 84.39 m, lane-1 radius 36.50 m, kerb 36.20 m, 8 × 1.22 m lanes). Method: DERIVED from the certified 400 m Class I track, not a site survey. The 3 m apron is a modelling allowance, not surveyed. | DERIVED |
+| 3D outer seating ring | half-axes [153.5, 148.5] m | Uses the cited building plan as an **upper bound**. Last-row vs façade is UNKNOWN. The Damai map is schematic (pixel aspect ~1.50 vs real 1.034) and is **not** copied into the 3D plan. Ring depths are fractions of (stand inner → this outer) read off the official map's seating-ellipse rho. | DERIVED from [G1][G2] |
+| **Top / rear row height** | — | No cited section or surveyed photo in this pass | UNKNOWN |
+| **Tier elevation breaks / rake** | — | No cited section or surveyed photo in this pass | UNKNOWN |
+| Heights used in the preview model | lower 2–12 m, mid 13–22 m, upper 23–32 m | **UNKNOWN modelling placeholders**, kept under the cited 59.7 m roof. Not surveyed. Not copied from Wuxi's 2–57 m stack. Do not present as measured. | UNKNOWN |
+| Roof form in the preview model | schematic cantilever, max 59.7 m, inward 39 m; no truss count | Height and cantilever CITED; rib/truss count is not cited and is not modelled as a count | CITED dimensions, schematic form |
+| Concert stage | Central stage on the field, kit `joker_xue_2026` | Same shared kit as Wuxi / Nest | STAGE_VIA_SHARED_KIT |
+| Official Damai map | `assets/refs/web/ganzhou/damai_seatmap.jpg` (3700×2689) | [G6] item 1095292691789; map https://img.alicdn.com/imgextra/i2/2251059038/O1CN01iWRwOPjaYUJ7Vlpd_!!2251059038.jpg. Title: 万兽之王 赣州站 2026 / 12.04-06. A is at the **top** of the image (same as Wuxi). 控台 (gray, not sold) sits between A2-1区 and A2-3区. Dark blocks are obstructed / not sold. | CITED |
+
+**[G1]** 土木在线, 赣州市全民健身中心钢屋盖顺利合龙, thread-10399421, citing 蓉江新区发布 (steel-roof closure 26 Dec 2022). https://bbs.co188.com/thread-10399421-1-1.html
+
+**[G2]** 9iHome, same roof-closure report (307 m × 297 m, 59.7 m, 39 m cantilever). http://news.9ihome.com/news/54381.cshtml
+
+**[G3]** 兴赣监理, https://www.jxxinggan.com/news/313.html
+
+**[G4]** 兴赣监理, https://www.jxxinggan.com/news/325.html
+
+**[G5]** 金陵体育, 400 m Class I track. http://www.jlsports.com/NewsDetail/7007912.html
+
+**[G6]** 大麦网 赣州站票页, item 1095292691789. https://detail.damai.cn/item.htm?id=1095292691789
+
+
+## Kunming · 昆明拓东体育场
+
+| Param | Value | Source | Status |
+|-------|-------|--------|--------|
+| Capacity (after 2026 renovation) | 40,070 | 云南省体育局 / 滇超 coverage | CITED |
+| Aisles | 26 aisles, 1.2 m wide | Renovation reports | CITED |
+| Tier count | Two seating tiers 上/下 | Official Damai map + renovation reports of upper and lower stands | CITED |
+| Track | 400 m, World Athletics Class 1 B | Renovation / World Athletics coverage | CITED |
+| Renovation scope | Kept original outline, floors, and height | Kunming natural-resources façade notice | CITED (qualitative; no meter figure) |
+| Historical | 1987–89 expansion to ~42,000; four-storey surrounding rooms; canopies later covering all four stands | Official tdzx.cn page, 2015 | CITED (historical) |
+| Plan size (building / bowl) | — | No cited drawing in this pass. Do **not** use the OSM 拓东体育馆 (indoor arena) bbox as if it were the stadium. A 52.96 mu / 35,307 m² figure is site area, not bowl plan. | UNKNOWN |
+| Infield / track plan (3D) | same DERIVED 400 m track as Ganzhou (both venues have a certified 400 m track) + 3 m apron | See Ganzhou infield row | DERIVED |
+| 3D outer seating ring | half-axes ≈ [124.9, 67.1] m | DERIVED: official-map mean stand-depth ratio (r_out / r_in ≈ 1/0.729 ≈ 1.372) applied to (track outer + apron). Keeps the track aspect. **Not** an independently surveyed building plan. | DERIVED |
+| **Top / rear row height** | — | No cited section or surveyed photo in this pass | UNKNOWN |
+| **Tier elevation breaks / rake** | — | No cited section or surveyed photo in this pass | UNKNOWN |
+| Heights used in the preview model | 下 2–11 m, 上 13–22 m | **UNKNOWN modelling placeholders**. Not surveyed. Not copied from Wuxi. Do not present as measured. | UNKNOWN |
+| Roof / façade height | — | Renovation “kept original height” is qualitative only. No meter figure. The 3D preview has **no roof**. | UNKNOWN |
+| Concert stage | Central stage on the field, kit `joker_xue_2026` | Same shared kit | STAGE_VIA_SHARED_KIT |
+| Official Damai map | `assets/refs/web/kunming/damai_seatmap.jpg` (1280×914; no sharper official original found) | [K1] item 1094660857964; map https://img.alicdn.com/imgextra/i1/2251059038/O1CN01Y1PNiRzNzgK2b8AE_!!2251059038.jpg. Dates 12.19–20 and 12.25–26. Two-tier stands, sections 1–26 each split A/B and 上/下. 主席台1–3区 on the A-side inner ring at the **bottom** of the image. Floor letters are **mirrored** vs Ganzhou/Wuxi: Kunming A is at the bottom (front of stage, with 主席台). | CITED |
+
+**[K1]** 大麦网 昆明站票页, item 1094660857964. https://detail.damai.cn/item.htm?id=1094660857964
+
+Last updated: 2026-11-18 (Ganzhou and Kunming preview bowls added; heights remain UNKNOWN).

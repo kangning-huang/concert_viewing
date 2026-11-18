@@ -328,13 +328,20 @@ small {
   pointer-events: none;
 }
 .masthead .venue-switch {
-  display: inline-block;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 12px;
   margin-top: 8px;
   font-size: 12px;
-  color: #6fffd2;
-  text-decoration: none;
   pointer-events: auto;
   padding: 8px 0;
+}
+.masthead .venue-switch a {
+  color: #6fffd2;
+  text-decoration: none;
+}
+.masthead .venue-switch .here {
+  color: #c8d0d4;
 }
 .sec.unsold {
   pointer-events: none;

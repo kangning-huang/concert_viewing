@@ -21,7 +21,7 @@ export function seatMetrics(section, venue) {
   let zone = "黄金角";
   if (hfov > close) zone = "贴脸";
   else if (hfov < far) zone = "全景看台";
-  return { distance_m: dist, stage_hfov_deg: hfov, offset_m: offset, zone, price_cny: section.price, promise: promise(zone, section), occlusion: occlusion(section) };
+  return { distance_m: dist, stage_hfov_deg: hfov, offset_m: offset, zone, price_cny: section.price, promise: promise(zone, section), occlusion: occlusion(section, venue) };
 }
 function promise(zone, s) {
   return zone === "贴脸"
@@ -32,6 +32,9 @@ function promise(zone, s) {
     ? "人和屏都看得清，舞台构图完整"
     : "整套舞台尽收眼底，人很小，主要看大屏";
 }
-function occlusion(s) {
-  return s.kind === "floor" ? "前排观众的头和围栏会入画" : s.tier === "lower" ? "舞台塔架可能遮挡部分视线" : "顶棚边缘会进入画面上方";
+function occlusion(s, venue) {
+  if (s.kind === "floor") return "前排观众的头和围栏会入画";
+  if (s.tier === "lower") return "舞台塔架可能遮挡部分视线";
+  if (venue?.bowl?.roof?.type === "none") return "后排看台较高，舞台人很小，主要看大屏";
+  return "顶棚边缘会进入画面上方";
 }

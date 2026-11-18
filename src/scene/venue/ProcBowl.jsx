@@ -221,9 +221,20 @@ export const tierRows = (t) => Math.max(8, Math.round((t.o[0] - t.i[0] + (t.o[1]
 export const slotIds = (spec) => [...Array(spec.slots).keys()].map((i) => i + (spec.slotBase ?? 0));
 
 // Which radial ranges of each (tier, slot) are on sale → crowd; everything else → empty seats.
+const onArc = (th, a0, a1) => {
+  const wrap = (x) => ((x + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+  const da = wrap(a1 - a0), dt = wrap(th - a0);
+  return da >= 0 ? dt >= -1e-6 && dt <= da + 1e-6 : dt <= 1e-6 && dt >= da - 1e-6;
+};
 export function occupancy(venue) {
-  const map = {};
-  for (const s of venue.sections) if (s.kind === "bowl" && !s.unsold) (map[`${s.tier}:${s.slot}`] ??= []).push(s.d);
+  const map = {}, spec = venue.bowl;
+  for (const s of venue.sections) {
+    if (s.kind !== "bowl" || s.unsold) continue;
+    const paint = (slot) => { (map[`${s.tier}:${slot}`] ??= []).push(s.d); };
+    if (s.span && spec) {
+      for (const slot of slotIds(spec)) if (onArc(spec.theta(slot), s.span[0], s.span[1])) paint(slot);
+    } else paint(s.slot);
+  }
   return (tierKey, slot, d) => (map[`${tierKey}:${slot}`]?.some(([a, b]) => d >= a && d <= b) ? 0.94 : 0);
 }
 
@@ -354,6 +365,18 @@ function buildStructure(venue, detail) {
       const t0 = (i / S) * Math.PI * 2, t1 = ((i + 1) / S) * Math.PI * 2;
       mb.quad(ringPt(F[0] + 2, F[1] + 2, 46, t0), ringPt(F[0] + 2, F[1] + 2, 46, t1), at(t1, 1, -1.5), at(t0, 1, -1.5), [0.3, 0.34, 0.35], { out: true, glow: [0.01, 0.013, 0.018] });
     }
+  } else if (roof.type === "cantilever") {
+    // CITED: max height 59.7 m, inward cantilever 39 m (Ganzhou). Form is schematic;
+    // truss count is not cited and is not drawn as a counted array.
+    const [ra, rb] = roof.outer, inward = roof.inward, yTop = roof.top;
+    const ia = Math.max(8, ra - inward), ib = Math.max(8, rb - inward);
+    const STEEL = [0.56, 0.62, 0.64], DECK = [0.22, 0.23, 0.25];
+    const yIn = yTop - 10, yOut = yTop;
+    band({ a: ia, b: ib, y: yIn }, { a: ra, b: rb, y: yOut }, DECK, { two: true, roof: true, light: 0.05 });
+    band({ a: ia, b: ib, y: yIn - 1.2 }, { a: ia, b: ib, y: yIn + 0.4 }, STEEL, { two: true, roof: true });
+    band({ a: ra, b: rb, y: yOut - 0.4 }, { a: ra + 0.6, b: rb + 0.6, y: yOut + 0.2 }, STEEL, { two: true, roof: true });
+  } else if (roof.type === "none") {
+    // no roof geometry (Kunming height uncited)
   } else {
     const [oa, ob] = roof.opening, [ra, rb] = roof.outer, yTop = roof.top, [cIn, cOut] = roof.ceil, STEEL = [0.66, 0.72, 0.74], PANEL = [0.74, 0.79, 0.8];
     // The membrane ceiling is a shallow funnel: lowest at the opening edge, rising outwards over

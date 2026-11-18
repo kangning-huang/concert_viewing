@@ -1,3 +1,5 @@
+import gzHot from "./ui/damai/ganzhouDamaiHotspots.json";
+import kmHot from "./ui/damai/kunmingDamaiHotspots.json";
 // Venue data — reconstructed 1:1 from the c941445 bundle.
 // Each section is individually pickable; picking a section flies the camera to
 // that section's seat point (`seat`).
@@ -205,6 +207,211 @@ const WUXI_BOWL = {
   roof: { type: "wuxi", trusses: 64, radialCables: 128, hoops: 6, membraneDepth: 30, inner: [77.9 * WS, 52.6 * WS], outer: [123.5 * WS, 92.6 * WS], y: (th) => 69 + 5.5 * Math.cos(2 * th), facade: [124.5 * WS, 92.1 * WS] },
 };
 
+// ============================ 赣州 / 昆明 (preview) ============================
+// Ganzhou + Kunming venue data. Shared stage kit is joker_xue_2026, same deck as Wuxi;
+// only the bowl and seats differ. Plan numbers are CITED / DERIVED in docs/refs/BOWL_PARAMS.md.
+// Heights are UNKNOWN modelling placeholders and are not surveyed.
+
+
+const COLORS = { red: "#e8605f", peach: "#f2b58f", yellow: "#eddc5c", lavender: "#b7a3dc", green: "#a8cf78", blue: "#7fb6e6", rose: "#e0718f", unsold: "#34363f" };
+const PRICES = { red: 1717, peach: 1517, yellow: 1317, lavender: 917, green: 717, blue: 517, rose: 317 };
+
+// Same deck as Wuxi — one shared stage kit.
+export const TOUR_STAGE = { halfX: 46.5, halfZ: 26.5, height: 36 };
+
+// Standard 400 m track (World Athletics): straights 84.39 m, curve radius 36.50 m to the
+// lane-1 running line. Kerb radius 36.20 m (= 36.50 − 0.30). Eight lanes × 1.22 m = 9.76 m,
+// so the track outer half-axes are [84.39/2 + 45.96, 45.96] = [88.155, 45.96]. Documented
+// as DERIVED in BOWL_PARAMS.md. (2×84.39 + 2π×36.50 ≈ 398.12 m; the 0.30 m running-line
+// offset is the usual remainder toward 400 m.)
+const TRACK_OUTER = [88.155, 45.96];
+const APRON = 3; // modelling allowance between track outer and first row, not surveyed
+const STAND_IN = [TRACK_OUTER[0] + APRON, TRACK_OUTER[1] + APRON];
+
+// Ganzhou building plan CITED 307 m × 297 m. Last-row vs façade is UNKNOWN; the 3D outer
+// seating ring uses the cited building plan as an upper bound, not a surveyed last row.
+const GZ_OUT = [153.5, 148.5];
+// Map t-bands (seating-ellipse rho) → depth fraction of (STAND_IN → GZ_OUT).
+// inner 0.650–0.755, mid 0.765–0.868, outer 0.868–1.020 (span 0.650–1.020).
+const gzFrac = (t) => (t - 0.65) / (1.02 - 0.65);
+const gzRing = (t0, t1, y) => {
+  const a = (t) => [STAND_IN[0] + (GZ_OUT[0] - STAND_IN[0]) * t, STAND_IN[1] + (GZ_OUT[1] - STAND_IN[1]) * t];
+  return { i: a(gzFrac(t0)), o: a(gzFrac(t1)), y };
+};
+// Heights: UNKNOWN placeholders, kept well under the CITED 59.7 m roof. Not surveyed, not Wuxi's 2–57 m stack.
+const GZ_TIERS = {
+  lower: gzRing(0.65, 0.755, [2, 12]),
+  mid: gzRing(0.765, 0.868, [13, 22]),
+  upper: gzRing(0.868, 1.02, [23, 32]),
+};
+
+// Kunming plan size is UNKNOWN. Outer ring DERIVED from the official-map mean stand-depth
+// ratio (r_out / r_in ≈ 1/0.729 ≈ 1.372) applied to STAND_IN (standard track + apron).
+// This keeps the track aspect; it is not an independently surveyed building plan.
+const KM_RATIO = 1.372;
+const KM_OUT = [STAND_IN[0] * KM_RATIO, STAND_IN[1] * KM_RATIO];
+const kmFrac = (t) => (t - 0.73) / (1.03 - 0.73);
+const kmRing = (t0, t1, y) => {
+  const a = (t) => [STAND_IN[0] + (KM_OUT[0] - STAND_IN[0]) * t, STAND_IN[1] + (KM_OUT[1] - STAND_IN[1]) * t];
+  return { i: a(kmFrac(t0)), o: a(kmFrac(t1)), y };
+};
+// Heights: UNKNOWN placeholders. Roof / façade height uncited. Two tiers only (上/下).
+const KM_TIERS = {
+  lower: kmRing(0.73, 0.872, [2, 11]),
+  upper: kmRing(0.878, 1.03, [13, 22]),
+};
+
+const SLOTS = 64;
+const thetaOf = (slot) => -Math.PI + ((slot + 0.5) / SLOTS) * 2 * Math.PI;
+export const slotOfAngle = (th) => {
+  const u = (th + Math.PI) / (2 * Math.PI);
+  return ((Math.floor(u * SLOTS) % SLOTS) + SLOTS) % SLOTS;
+};
+
+const floorBlock = (id, tone, x0, z0, x1, z1, name) => {
+  const center = { x: (x0 + x1) / 2, z: (z0 + z1) / 2 };
+  const nearZ = Math.abs(z0) < Math.abs(z1) ? z0 : z1, farZ = nearZ === z0 ? z1 : z0;
+  const endSide = Math.abs(nearZ) > TOUR_STAGE.halfZ && Math.abs(center.x) < TOUR_STAGE.halfX;
+  const seat = endSide
+    ? { x: center.x, y: 1.55, z: nearZ + (farZ - nearZ) * 0.25 }
+    : { x: Math.sign(center.x || 1) * (Math.min(Math.abs(x0), Math.abs(x1)) + Math.abs(x1 - x0) * 0.25), y: 1.55, z: center.z };
+  return { id, name: name ?? `${id}区`, tone, color: COLORS[tone], price: PRICES[tone], kind: "floor", mapLabel: id, points: [[x0, z0], [x1, z0], [x1, z1], [x0, z1]], center, seat, label: center };
+};
+
+// Four blocks along each side of the shared deck. Ganzhou: A at −Z (top of Damai map).
+// Kunming: A at +Z (bottom of Damai map — floor letters are mirrored).
+const TOUR_GAP = 3, BW = 13.5, BD = 11, BG = 1.6;
+function endBlocks(ids, tone, zSign) {
+  const z0 = zSign * (TOUR_STAGE.halfZ + TOUR_GAP);
+  const z1 = z0 + zSign * BD;
+  const total = ids.length * BW + (ids.length - 1) * BG;
+  const xStart = -total / 2;
+  return ids.map((id, i) => {
+    const x0 = xStart + i * (BW + BG), x1 = x0 + BW;
+    return floorBlock(id, tone, x0, z0, x1, z1);
+  });
+}
+function sideBlocks(closeIds, farIds, closeTone, farTone, xSign) {
+  // closeIds: [upper, lower] (upper = −Z), two rows
+  const xClose0 = xSign * (TOUR_STAGE.halfX + TOUR_GAP);
+  const xClose1 = xClose0 + xSign * BD;
+  const xFar0 = xClose1 + xSign * BG;
+  const xFar1 = xFar0 + xSign * BD;
+  const zPairs = [[-BW - BG / 2, -BG / 2], [BG / 2, BW + BG / 2]]; // upper, lower
+  const out = [];
+  closeIds.forEach((id, i) => out.push(floorBlock(id, closeTone, xClose0, zPairs[i][0], xClose1, zPairs[i][1])));
+  farIds.forEach((id, i) => out.push(floorBlock(id, farTone, xFar0, zPairs[i][0], xFar1, zPairs[i][1])));
+  return out;
+}
+
+const gzFloor = [
+  ...endBlocks(["A4", "A3", "A2", "A1"], "red", -1),
+  ...endBlocks(["C1", "C2", "C3", "C4"], "red", +1),
+  ...sideBlocks(["B1", "B2"], ["B3", "B4"], "peach", "yellow", -1),
+  ...sideBlocks(["D2", "D1"], ["D4", "D3"], "peach", "yellow", +1),
+];
+const kmFloor = [
+  ...endBlocks(["C4", "C3", "C2", "C1"], "red", -1),
+  ...endBlocks(["A1", "A2", "A3", "A4"], "red", +1),
+  ...sideBlocks(["D1", "D2"], ["D3", "D4"], "peach", "yellow", -1),
+  ...sideBlocks(["B2", "B1"], ["B4", "B3"], "peach", "yellow", +1),
+];
+
+function bowlSections(hot, tiers) {
+  const out = [];
+  for (const [id, m] of Object.entries(hot.meta)) {
+    if (m.kind !== "bowl") continue;
+    const t = tiers[m.tier];
+    if (!t) continue;
+    const d0 = 0.08, d1 = 0.92, dm = 0.5, th = m.ang;
+    const at = (d) => [t.i[0] + (t.o[0] - t.i[0]) * d, t.i[1] + (t.o[1] - t.i[1]) * d];
+    const [ra, rb] = at(dm);
+    const x = ra * Math.cos(th), z = rb * Math.sin(th);
+    const y = t.y[0] + (t.y[1] - t.y[0]) * dm + 0.45;
+    out.push({
+      id,
+      name: m.name,
+      tone: m.tone,
+      color: COLORS[m.tone],
+      price: m.price,
+      kind: "bowl",
+      tier: m.tier,
+      slot: slotOfAngle(th),
+      d: [d0, d1],
+      span: [m.a0, m.a1],
+      seat: { x, y: y + 1.2, z },
+      center: { x, z },
+      label: { x, z },
+    });
+  }
+  return out;
+}
+
+function crowdBands(tiers) {
+  return Object.entries(tiers).map(([key, t]) => {
+    const rows = Math.max(8, Math.round((t.o[0] - t.i[0] + (t.o[1] - t.i[1])) / 2 / 0.85));
+    const at = (d) => [t.i[0] + (t.o[0] - t.i[0]) * d, t.i[1] + (t.o[1] - t.i[1]) * d];
+    return {
+      rows,
+      count: (d) => Math.floor(at(d)[0] * 3.6),
+      at: (d, a) => {
+        const [ra, rb] = at(d);
+        return [ra * Math.cos(a), t.y[0] + (t.y[1] - t.y[0]) * d + 1.25, rb * Math.sin(a)];
+      },
+    };
+  });
+}
+
+function bowlSpec(tiers, roof, fieldOuter) {
+  return {
+    eps: 0,
+    slots: SLOTS,
+    slotBase: 0,
+    theta: thetaOf,
+    tiers: Object.entries(tiers).map(([key, t]) => ({ key, i: t.i, o: t.o, y: t.y })),
+    seatColors: [[0.1, 0.3, 0.29], [0.12, 0.25, 0.34], [0.18, 0.28, 0.37]],
+    field: { turf: [TRACK_OUTER[0] - 9, TRACK_OUTER[1] - 9], track: TRACK_OUTER },
+    roof,
+  };
+}
+
+const gzSecs = [...bowlSections(gzHot, GZ_TIERS), ...gzFloor];
+const kmSecs = [...bowlSections(kmHot, KM_TIERS), ...kmFloor];
+
+const GANZHOU = {
+  id: "ganzhou",
+  sections: gzSecs,
+  byId: (id) => gzSecs.find((s) => s.id === id),
+  stage: TOUR_STAGE,
+  thresholds: { close: 90, far: 55 },
+  defaultId: "C3",
+  quick: ["C3", "C05"],
+  compare: ["C3", "C05"],
+  povs: { close: "C3", sweet: "C05" },
+  crowdBands: crowdBands(GZ_TIERS),
+  bowl: bowlSpec(GZ_TIERS, { type: "cantilever", top: 59.7, inward: 39, outer: GZ_OUT }),
+  barriers: [[0, 28, 96, 0.06], [0, -28, 96, 0.06], [-49, 0, 0.06, 56], [49, 0, 0.06, 56]],
+  placeholderRings: Object.values(GZ_TIERS).map((t) => ({ inner: t.i, outer: t.o, y: t.y })),
+  meta: { title: "赣州站", dates: ["12.04–06"], ledDate: "2026.12.04", place: "赣州市全民健身中心体育场", pageTitle: "薛之谦 · 赣州站选座预览", aria: "赣州站座位图" },
+};
+
+const KUNMING = {
+  id: "kunming",
+  sections: kmSecs,
+  byId: (id) => kmSecs.find((s) => s.id === id),
+  stage: TOUR_STAGE,
+  thresholds: { close: 90, far: 55 },
+  defaultId: "A2",
+  quick: ["A2", "主席台2"],
+  compare: ["A2", "主席台2"],
+  povs: { close: "A2", sweet: "主席台2" },
+  crowdBands: crowdBands(KM_TIERS),
+  bowl: bowlSpec(KM_TIERS, { type: "none" }),
+  barriers: [[0, 28, 96, 0.06], [0, -28, 96, 0.06], [-49, 0, 0.06, 56], [49, 0, 0.06, 56]],
+  placeholderRings: Object.values(KM_TIERS).map((t) => ({ inner: t.i, outer: t.o, y: t.y })),
+  meta: { title: "昆明站", dates: ["12.19–20　12.25–26"], ledDate: "2026.12.19", place: "昆明拓东体育场", pageTitle: "薛之谦 · 昆明站选座预览", aria: "昆明站座位图" },
+};
+
 export const VENUES = {
   nest: {
     id: "nest",
@@ -244,6 +451,8 @@ export const VENUES = {
     placeholderRings: [...Object.values(WUXI_TIERS).map((t) => ({ inner: t.i, outer: t.o, y: t.y }))],
     meta: { title: "无锡站", dates: ["11.13–15　11.20–22"], ledDate: "2026.11.13", place: "无锡奥林匹克体育中心体育场", pageTitle: "薛之谦 · 无锡站选座预览", aria: "无锡站座位图" },
   },
+  ganzhou: GANZHOU,
+  kunming: KUNMING,
 };
 
 export const sectionName = (s) => s.name ?? `${s.id}区`;

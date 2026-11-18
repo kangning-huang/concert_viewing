@@ -14,7 +14,13 @@ const hero = params.has("cam");
 // ?seat=<section id> opens straight on that seat (review screenshots, scripts/shot.mjs)
 const deepPov = venue.povs?.[params.get("pov")] ?? (venue.byId(params.get("seat")) ? params.get("seat") : undefined);
 document.title = venue.meta.pageTitle;
-const switchLink = venue.id === "nest" ? { href: "?venue=wuxi", label: "切换到无锡站" } : { href: "?venue=nest", label: "切换到北京站" };
+
+const CITIES = [
+  { id: "nest", label: "北京站" },
+  { id: "wuxi", label: "无锡站" },
+  { id: "ganzhou", label: "赣州站" },
+  { id: "kunming", label: "昆明站" },
+];
 
 // phase: map → flyin → land → pov → flyout → map
 export default function App() {
@@ -43,7 +49,11 @@ export default function App() {
         <p className="artist">薛之谦 · 万兽之王巡回演唱会</p>
         <p className="dates">{venue.meta.dates.map((d, i) => <Fragment key={d}>{i > 0 && <br />}{d}</Fragment>)}</p>
         <p className="venue">{venue.meta.place}</p>
-        <a className="venue-switch" href={switchLink.href}>{switchLink.label}</a>
+        <nav className="venue-switch" aria-label="切换城市">
+          {CITIES.map((c) => (c.id === venue.id
+            ? <span key={c.id} className="here">{c.label}</span>
+            : <a key={c.id} href={`?venue=${c.id}`}>{c.label}</a>))}
+        </nav>
       </div>
       {onMap && (
         <section className="pick-card">
