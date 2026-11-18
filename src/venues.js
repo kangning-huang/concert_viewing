@@ -1,5 +1,5 @@
-import gzHot from "./ui/damai/ganzhouDamaiHotspots.json";
-import kmHot from "./ui/damai/kunmingDamaiHotspots.json";
+import gzHot from "./ui/damai/ganzhouDamaiHotspots.json" with { type: "json" };
+import kmHot from "./ui/damai/kunmingDamaiHotspots.json" with { type: "json" };
 // Venue data — reconstructed 1:1 from the c941445 bundle.
 // Each section is individually pickable; picking a section flies the camera to
 // that section's seat point (`seat`).
@@ -317,6 +317,14 @@ const kmFloor = [
   ...sideBlocks(["B2", "B1"], ["B4", "B3"], "peach", "yellow", +1),
 ];
 
+function sectorPoints(t, a0, a1, d0, d1) {
+  const wrap = (x) => ((x + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+  const da = wrap(a1 - a0), at = (d) => [t.i[0] + (t.o[0] - t.i[0]) * d, t.i[1] + (t.o[1] - t.i[1]) * d], pts = [];
+  const [ia, ib] = at(d0), [oa, ob] = at(d1);
+  for (let k = 0; k <= 4; k++) pts.push([ia * Math.cos(a0 + (da * k) / 4), ib * Math.sin(a0 + (da * k) / 4)]);
+  for (let k = 4; k >= 0; k--) pts.push([oa * Math.cos(a0 + (da * k) / 4), ob * Math.sin(a0 + (da * k) / 4)]);
+  return pts;
+}
 function bowlSections(hot, tiers) {
   const out = [];
   for (const [id, m] of Object.entries(hot.meta)) {
@@ -339,6 +347,7 @@ function bowlSections(hot, tiers) {
       slot: slotOfAngle(th),
       d: [d0, d1],
       span: [m.a0, m.a1],
+      points: sectorPoints(t, m.a0, m.a1, d0, d1),
       seat: { x, y: y + 1.2, z },
       center: { x, z },
       label: { x, z },

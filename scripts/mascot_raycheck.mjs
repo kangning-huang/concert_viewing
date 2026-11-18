@@ -96,7 +96,7 @@ const browser = await puppeteer.launch({
 
 let failed = false;
 const report = {};
-for (const vid of ["wuxi", "nest"]) {
+for (const vid of ["wuxi", "nest", "ganzhou", "kunming"]) {
   const venue = VENUES[vid];
   const page = await browser.newPage();
   await page.setViewport({ width: 390, height: 844, deviceScaleFactor: 1 });
